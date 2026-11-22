@@ -63,7 +63,7 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request, u config.User) {
 		}
 		e := entry{Name: d.Name(), Dir: info.IsDir(), MTime: info.ModTime().Unix()}
 		if !e.Dir {
-			e.Size = s.plainSize(info)
+			e.Size = s.plainSize(filepath.Join(abs, d.Name()), info)
 		}
 		items = append(items, e)
 	}
@@ -136,7 +136,7 @@ func (s *Server) upload(w http.ResponseWriter, r *http.Request, u config.User) {
 		jerr(w, 409, "A folder with that name exists")
 		return
 	} else if err == nil && backup {
-		if fi.Mode().IsRegular() && r.ContentLength >= 0 && s.plainSize(fi) == r.ContentLength {
+		if fi.Mode().IsRegular() && r.ContentLength >= 0 && s.plainSize(dest, fi) == r.ContentLength {
 			jsonOut(w, 200, map[string]interface{}{"ok": true, "skipped": true, "saved": name}) // already backed up
 			return
 		}

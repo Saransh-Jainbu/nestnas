@@ -43,7 +43,7 @@ func (s *Server) backupCheck(w http.ResponseWriter, r *http.Request, u config.Us
 			missing = append(missing, i) // let the upload report the real problem
 			continue
 		}
-		if fi, err := os.Lstat(abs); err == nil && fi.Mode().IsRegular() && s.plainSize(fi) == f.Size {
+		if fi, err := os.Lstat(abs); err == nil && fi.Mode().IsRegular() && s.plainSize(abs, fi) == f.Size {
 			continue
 		}
 		missing = append(missing, i)

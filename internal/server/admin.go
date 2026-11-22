@@ -140,7 +140,7 @@ func (s *Server) system(w http.ResponseWriter, r *http.Request, u config.User) {
 		"hostname":     hn,
 		"urls":         s.deviceURLs(),
 		"tls":          map[string]interface{}{"enabled": s.TLSPort > 0, "port": s.TLSPort, "fingerprint": s.caPrint, "setup_urls": s.setupURLs()},
-		"encryption":   map[string]interface{}{"enabled": s.encrypted(), "locked": s.locked(), "auto_unlock": s.st.AutoUnlock()},
+		"encryption":   map[string]interface{}{"enabled": s.encrypted(), "locked": s.locked(), "auto_unlock": s.st.AutoUnlock(), "convert": s.conv.get(), "pending": s.st.Converting()},
 		"storage_path": storage,
 		"disk_free":    free,
 		"disk_total":   total,

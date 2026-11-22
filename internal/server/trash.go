@@ -108,7 +108,7 @@ func (s *Server) trashList(w http.ResponseWriter, r *http.Request, u config.User
 		if m.Dir {
 			it.Size = fsx.DirSize(filepath.Join(dir, "item"))
 		} else if fi, err := os.Lstat(filepath.Join(dir, "item")); err == nil {
-			it.Size = s.plainSize(fi)
+			it.Size = s.plainSize(filepath.Join(dir, "item"), fi)
 		}
 		items = append(items, it)
 	}
@@ -271,7 +271,7 @@ func (s *Server) zipFolder(w http.ResponseWriter, r *http.Request, u config.User
 			return nil
 		}
 		defer closeFile()
-		h.UncompressedSize64 = uint64(s.plainSize(info))
+		h.UncompressedSize64 = uint64(s.plainSize(p, info))
 		fw, err := zw.CreateHeader(h)
 		if err != nil {
 			return err

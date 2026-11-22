@@ -41,25 +41,27 @@ type Server struct {
 	Version string
 	Port    int
 
-	mu        sync.Mutex
-	sessions  map[string]session
-	fails     map[string][]time.Time // ip -> recent failed logins
-	usage     map[string]usageEntry
-	davKey    []byte
-	davCache  map[string]davEntry
-	vault     *vault.Vault
-	thumbs    *thumbCache
-	thumbSem  chan struct{}
-	home      string     // NestNAS settings folder (auto-unlock key lives here)
-	autoAt    time.Time  // last auto-unlock attempt
-	TLSPort   int        // 0 = HTTPS disabled
-	SetupPort int        // 0 = device-setup page disabled
-	caPEM     []byte     // public CA certificate served at /ca.crt
-	caPrint   string     // its SHA-256 fingerprint
-	idMu      sync.Mutex // serialises stamping a storage identity
-	okPath    string     // storage path whose identity marker was verified recently
-	okAt      time.Time  // when it was verified
-	relocAt   time.Time  // last time we scanned for the drive at a new location
+	mu          sync.Mutex
+	sessions    map[string]session
+	fails       map[string][]time.Time // ip -> recent failed logins
+	usage       map[string]usageEntry
+	davKey      []byte
+	davCache    map[string]davEntry
+	vault       *vault.Vault
+	conv        converter
+	convRunning int32
+	thumbs      *thumbCache
+	thumbSem    chan struct{}
+	home        string     // NestNAS settings folder (auto-unlock key lives here)
+	autoAt      time.Time  // last auto-unlock attempt
+	TLSPort     int        // 0 = HTTPS disabled
+	SetupPort   int        // 0 = device-setup page disabled
+	caPEM       []byte     // public CA certificate served at /ca.crt
+	caPrint     string     // its SHA-256 fingerprint
+	idMu        sync.Mutex // serialises stamping a storage identity
+	okPath      string     // storage path whose identity marker was verified recently
+	okAt        time.Time  // when it was verified
+	relocAt     time.Time  // last time we scanned for the drive at a new location
 
 	Mux *http.ServeMux
 }
@@ -105,8 +107,11 @@ func New(st *config.Store, version string, port int) *Server {
 	m.HandleFunc("/api/share", s.authed(s.createShare))
 	m.HandleFunc("/api/share/delete", s.authed(s.deleteShare))
 
+	m.Handle("/fonts/", s.fonts())
 	m.HandleFunc("/manifest.webmanifest", s.manifest)
 	m.HandleFunc("/icon.png", s.icon)
+	m.HandleFunc("/icon-512.png", s.icon512)
+	m.HandleFunc("/favicon.svg", s.favicon)
 	m.HandleFunc("/apple-touch-icon.png", s.icon)
 	m.HandleFunc("/ca.crt", s.serveCA)
 	m.HandleFunc("/ca.cer", s.serveCADER)
@@ -114,6 +119,7 @@ func New(st *config.Store, version string, port int) *Server {
 	m.HandleFunc("/api/vault", s.authed(s.vaultInfo))
 	m.HandleFunc("/api/vault/unlock", s.adminOnly(s.vaultUnlock))
 	m.HandleFunc("/api/vault/lock", s.adminOnly(s.vaultLock))
+	m.HandleFunc("/api/vault/convert", s.adminOnly(s.vaultConvert))
 	m.HandleFunc("/api/vault/passphrase", s.adminOnly(s.vaultPassphrase))
 	m.HandleFunc("/api/vault/autounlock", s.adminOnly(s.vaultAutoUnlock))
 	m.HandleFunc("/api/system", s.adminOnly(s.system))
@@ -407,7 +413,7 @@ func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
 	_, _ = w.Write(web.Index)
 }
 

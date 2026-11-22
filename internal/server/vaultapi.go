@@ -19,7 +19,7 @@ import (
 // that does not touch file contents, so an admin can log in and unlock.
 func lockExempt(p string) bool {
 	switch p {
-	case "/api/me", "/api/system", "/api/password", "/api/shares", "/api/share/delete":
+	case "/api/me", "/api/list", "/api/system", "/api/password", "/api/shares", "/api/share/delete":
 		return true
 	}
 	return strings.HasPrefix(p, "/api/vault") || strings.HasPrefix(p, "/api/users") || strings.HasPrefix(p, "/api/apps")
@@ -37,8 +37,10 @@ func (s *Server) writeAutoKey() error {
 }
 
 func (s *Server) vaultInfo(w http.ResponseWriter, r *http.Request, u config.User) {
+	s.resumeConversion() // picks up a conversion that a restart interrupted
 	jsonOut(w, 200, map[string]interface{}{
 		"enabled": s.encrypted(), "locked": s.locked(), "auto_unlock": s.st.AutoUnlock(),
+		"convert": s.conv.get(), "pending": s.st.Converting(),
 	})
 }
 

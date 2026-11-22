@@ -1,4 +1,6 @@
-# 🪺 NestNAS
+<p align="center"><img src="assets/logo-mark.svg" width="112" alt="NestNAS logo"></p>
+
+<h1 align="center">NestNAS</h1>
 
 **Turn any laptop into your own private cloud.** Choose how much disk space to lend, and NestNAS gives you a web file manager, photo gallery, phone backup, share links, multiple users, an encrypted network drive and more, with nothing else to install.
 
@@ -15,8 +17,8 @@ Website: <https://nestnas.vercel.app> (its source is in [`site/`](site/)).
 | **Space allowance** | Files live in a normal folder; NestNAS enforces a per-user quota (no partitioning, no root) |
 | **Web file manager** | Upload (drag and drop, progress), resumable download, folders, rename, zip a whole folder |
 | **Preview and gallery** | Open photos, videos, audio, PDFs and text inside NestNAS: thumbnails, full-screen viewer, swipe/arrow keys, video seeking. Never cached by the browser. HTML/SVG are never previewed (they can run script) |
-| **Phone/computer backup** | The **Backup** tab copies photos, videos or a folder to the NAS over Wi-Fi. Safe to repeat: skips what's already there, never overwrites or deletes, keeps each photo's date, saves under `Phone Backup/<device>/<year>/<month>`, retries bad Wi-Fi. Handy for freeing up iCloud space |
-| **Encrypted at rest** | Optional (chosen at setup): file contents are AES-256-GCM encrypted before they reach the disk |
+| **Phone/computer backup** | The **Backup** tab copies photos, videos or a folder to the NAS over Wi-Fi. Safe to repeat: skips what's already there, never overwrites or deletes, keeps each photo's date, saves under `Phone Backup/<device>/<year>/<month>`, retries bad Wi-Fi. |
+| **Encrypted at rest** | One switch in Security: file contents are AES-256-GCM encrypted on the drive, and the app opens them as normal. Turning it off decrypts everything back to ordinary files |
 | **Encrypted in transit** | HTTPS (TLS 1.3 only) with NestNAS's own private certificate authority |
 | **Network drive** | Built-in WebDAV: mount your NAS in Finder, Windows Explorer or Linux file managers, signing in with your NestNAS login |
 | **Trash** | Deleting moves to a per-user trash; restore any time; purged after 30 days |
@@ -116,7 +118,7 @@ Pick it in the setup page: **Choose folder…** lists your drives with free spac
 
 ## Known limitations
 
-- **Encryption:** names, sizes and dates stay visible. It protects a stolen laptop or drive while locked, and your traffic on the network; it does not protect against malware on the unlocked NAS or someone who knows your passphrase. If you lose both the passphrase and the recovery key, your files are unrecoverable by design. It can only be turned on during setup for now. The file format is NestNAS's own and **has not been independently audited**.
+- **Encryption:** names, sizes and dates stay visible. It protects a stolen laptop or drive while locked, and your traffic on the network; it does not protect against malware on the unlocked NAS or someone who knows your passphrase. If you lose both the passphrase and the recovery key, your files are unrecoverable by design. Encryption can be switched on or off at any time from the Security tab; existing files are converted in place in the background (turning it off needs your passphrase). The file format is NestNAS's own and **has not been independently audited**.
 - **Phones:** iOS Safari can't upload in the background, so phone backup needs the page open with the screen on. Truly automatic backup would need a native app.
 - **Certificates:** each new device needs a one-time certificate install; there is no public-CA (Let's Encrypt/Tailscale) option yet.
 - **Platforms:** developed and tested on Ubuntu Linux. Windows and macOS builds compile and the logic is shared, but they haven't been run for real. Free-disk checks aren't implemented on Windows.
@@ -144,7 +146,7 @@ scripts/smoke.sh         end-to-end tests:  make smoke
 
 ## Roadmap
 
-1. Turn encryption on for an existing NAS (convert files in place); "forgot password" reset command
+1. "Forgot password" reset command
 2. Public-CA HTTPS via Tailscale certificates (no certificate install on devices)
 3. Automatic phone backup (iOS Shortcuts / device passwords, or a native app)
 4. Search, file versioning, folder sharing between users

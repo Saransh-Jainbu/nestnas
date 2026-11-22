@@ -246,7 +246,7 @@ func (s *Server) davPropfind(w http.ResponseWriter, r *http.Request, u config.Us
 	w.Header().Set("Content-Type", `application/xml; charset="utf-8"`)
 	w.WriteHeader(http.StatusMultiStatus)
 	fmt.Fprint(w, `<?xml version="1.0" encoding="utf-8"?><D:multistatus xmlns:D="DAV:">`)
-	s.davProps(w, hrefFor(rel, fi.IsDir()), fi, s.plainSize(fi), avail, used)
+	s.davProps(w, hrefFor(rel, fi.IsDir()), fi, s.plainSize(abs, fi), avail, used)
 	if fi.IsDir() && r.Header.Get("Depth") != "0" {
 		des, _ := os.ReadDir(abs)
 		for _, d := range des {
@@ -258,7 +258,7 @@ func (s *Server) davPropfind(w http.ResponseWriter, r *http.Request, u config.Us
 			if err != nil || info.Mode()&os.ModeSymlink != 0 {
 				continue
 			}
-			s.davProps(w, hrefFor(path.Join(rel, n), info.IsDir()), info, s.plainSize(info), avail, used)
+			s.davProps(w, hrefFor(path.Join(rel, n), info.IsDir()), info, s.plainSize(filepath.Join(abs, n), info), avail, used)
 		}
 	}
 	fmt.Fprint(w, `</D:multistatus>`)

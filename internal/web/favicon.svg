@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NestNAS">
+  <defs>
+    <linearGradient id="o" gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="53"><stop offset="0" stop-color="#5ec1ff"/><stop offset="1" stop-color="#1f6fff"/></linearGradient>
+    <linearGradient id="m" gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="46"><stop offset="0" stop-color="#8fdcff"/><stop offset="1" stop-color="#3b95ff"/></linearGradient>
+    <linearGradient id="i" gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="39"><stop offset="0" stop-color="#d9f4ff"/><stop offset="1" stop-color="#6dc8ff"/></linearGradient>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="14" x2="0" y2="30"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9fdcff"/></linearGradient>
+    <radialGradient id="glow" cx="32" cy="24" r="34" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1a6fb0" stop-opacity=".45"/><stop offset="1" stop-color="#1a6fb0" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="#05080c"/>
+  <rect width="64" height="64" rx="15" fill="url(#glow)"/>
+  <rect x=".5" y=".5" width="63" height="63" rx="14.5" fill="none" stroke="#1a2a3a"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 2)">
+    <path d="M10 30a22 22 0 0 0 44 0" stroke="url(#o)" stroke-width="4.4"/>
+    <path d="M17 30a15 15 0 0 0 30 0" stroke="url(#m)" stroke-width="4.4"/>
+    <path d="M24 30a8 8 0 0 0 16 0" stroke="url(#i)" stroke-width="4.4"/>
+    <path d="M32 14.5l7.5 7.5-7.5 7.5-7.5-7.5z" fill="url(#g)" stroke="url(#g)" stroke-width="2.2"/>
+  </g>
+</svg>

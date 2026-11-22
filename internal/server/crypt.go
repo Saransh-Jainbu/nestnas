@@ -62,7 +62,7 @@ func (s *Server) tryAutoUnlock() {
 
 // newContentWriter wraps f so everything written is encrypted when storage encryption is on.
 func (s *Server) newContentWriter(f io.Writer) (io.WriteCloser, error) {
-	if !s.encrypted() {
+	if !s.encrypted() || s.st.Converting() == "decrypt" { // while decrypting, new files are stored plain
 		return nopWriteCloser{f}, nil
 	}
 	return s.vault.NewWriter(f)
@@ -96,9 +96,16 @@ func (s *Server) openContent(abs string) (io.ReadSeeker, os.FileInfo, func(), er
 }
 
 // plainSize is the size the user sees (the file's real size, not its encrypted size on disk).
-func (s *Server) plainSize(fi os.FileInfo) int64 {
-	if s.encrypted() && fi.Mode().IsRegular() {
-		return vault.PlainSize(fi.Size())
+// Each file is checked on its own, because encryption can be switched on or off while some
+// files are still in the old form.
+func (s *Server) plainSize(path string, fi os.FileInfo) int64 {
+	if s.encrypted() && fi.Mode().IsRegular() && fi.Size() >= 56 {
+		if f, err := os.Open(path); err == nil {
+			defer f.Close()
+			if vault.IsEncrypted(f, fi.Size()) {
+				return vault.PlainSize(fi.Size())
+			}
+		}
 	}
 	return fi.Size()
 }

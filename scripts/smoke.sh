@@ -217,6 +217,28 @@ chk "pwa: manifest is served with the manifest type" "$(curl -sI $B/manifest.web
 chk "pwa: manifest declares standalone display and an icon" "$(curl -s $B/manifest.webmanifest | python3 -c "import sys,json;m=json.load(sys.stdin);print(m['display'],m['icons'][0]['src'])")" "standalone /icon.png"
 chk "pwa: icon is a PNG" "$(curl -s $B/apple-touch-icon.png | head -c4 | od -An -c | tr -d ' \n')" '211PNG'
 chk "pwa: dashboard links the manifest and touch icon" "$(curl -s $B/ | grep -c 'rel="manifest"\|rel="apple-touch-icon"')" 2
+# --- embedded fonts and a self-contained dashboard ---
+chk "fonts: served from the program itself" "$(code $B/fonts/fraunces.woff2)" 200
+chk "fonts: correct content type" "$(curl -sI $B/fonts/fraunces.woff2 | grep -ci '^content-type: font/woff2')" 1
+chk "fonts: cached for a year" "$(curl -sI $B/fonts/geist.woff2 | grep -ci 'cache-control: public, max-age=31536000, immutable')" 1
+chk "fonts: all six files present" "$(for f in fraunces fraunces-italic instrument-serif instrument-serif-italic geist geist-mono; do curl -s -o /dev/null -w '%{http_code}\n' $B/fonts/$f.woff2; done | grep -c 200)" 6
+chk "fonts: a real woff2 file" "$(curl -s $B/fonts/geist.woff2 | head -c4)" wOF2
+chk "fonts: missing file -> 404" "$(code $B/fonts/nope.woff2)" 404
+chk "fonts: only .woff2 is served" "$(code $B/fonts/geist.woff2.txt)" 404
+chk "fonts: no directory listing" "$(code $B/fonts/)" 404
+chk "fonts: traversal cannot reach other files" "$(code -L --path-as-is "$B/fonts/../index.html")" 404
+chk "dashboard: CSP allows data: images (grain) and nothing external" "$(curl -sI $B/ | grep -i '^content-security-policy' | grep -c "img-src 'self' data:")" 1
+chk "dashboard: loads nothing from other websites" "$(curl -s $B/ | grep -cE '<(link|script|img|iframe|source)[^>]*(src|href)="https?://|url\(https?://|@import')" 0
+chk "dashboard: fonts are referenced locally" "$(curl -s $B/ | grep -c 'url(/fonts/')" 6
+# --- brand assets ---
+chk "brand: favicon is an SVG" "$(curl -sI $B/favicon.svg | grep -ci '^content-type: image/svg+xml')" 1
+chk "brand: favicon contains the logo" "$(curl -s $B/favicon.svg | grep -c 'aria-label="NestNAS"')" 1
+chk "brand: 512px icon is a PNG" "$(curl -s $B/icon-512.png | head -c4 | od -An -c | tr -d ' \n')" '211PNG'
+chk "brand: 256px icon is a PNG" "$(curl -s $B/icon.png | head -c4 | od -An -c | tr -d ' \n')" '211PNG'
+chk "brand: manifest lists both icon sizes" "$(curl -s $B/manifest.webmanifest | python3 -c "import sys,json;print(len(json.load(sys.stdin)['icons']))")" 2
+chk "brand: dashboard links the favicon" "$(curl -s $B/ | grep -c 'rel="icon" href="/favicon.svg"')" 1
+chk "brand: dashboard uses the black and arctic-blue palette" "$(curl -s $B/ | grep -c -- '--accent:#6dc8ff')" 1
+chk "dashboard: no iCloud references" "$(curl -s $B/ | grep -ci icloud)" 0
 # --- device-setup port (plain HTTP, public certificate ONLY) ---
 D8="http://127.0.0.1:$SP"
 chk "setup port: landing page loads with the fingerprint" "$(curl -s $D8/ | grep -c "$(openssl x509 -in $CA -noout -fingerprint -sha256 | cut -d= -f2)")" 1
@@ -260,7 +282,8 @@ if [ "$ENC" = 1 ]; then
 
   # lock / unlock
   chk "enc: lock now" "$(code -b $J -X POST -d '{}' $B/api/vault/lock)" 200
-  chk "enc: locked -> file list refused (423)" "$(code -b $J "$B/api/list?path=/")" 423
+  chk "enc: locked -> file names still listed (no key needed)" "$(code -b $J "$B/api/list?path=/")" 200
+  chk "enc: locked -> listing exposes no contents" "$(curl -s -b $J "$B/api/list?path=/" | grep -c TOP-SECRET-PLAINTEXT)" 0
   chk "enc: locked -> preview refused (423)" "$(code -b $J "$B/api/view?path=/pic.png")" 423
   chk "enc: locked -> thumbnail refused (423)" "$(code -b $J "$B/api/thumb?path=/pic.png")" 423
   chk "enc: locked -> download refused (423)" "$(code -b $J "$B/api/download?path=/sec.txt")" 423
@@ -278,7 +301,7 @@ if [ "$ENC" = 1 ]; then
   # restart: the key lives only in memory, so the server must come back locked
   kill $PID; wait $PID 2>/dev/null; start
   $C -X POST -d '{"username":"admin","password":"password123"}' $B/api/login >/dev/null
-  chk "enc: after restart the storage is locked" "$(code -b $J "$B/api/list?path=/")" 423
+  chk "enc: after restart the storage is locked" "$(code -b $J "$B/api/download?path=/sec.txt")" 423
   chk "enc: recovery key unlocks" "$(code -b $J -X POST -d "{\"secret\":\"$REC\"}" $B/api/vault/unlock)" 200
   chk "enc: data intact after restart" "$($C "$B/api/download?path=/sec.txt")" TOP-SECRET-PLAINTEXT-MARKER-12345
 
@@ -306,5 +329,32 @@ if [ "$ENC" = 1 ]; then
   chk "enc: auto-unlock: restart comes back unlocked" "$($C "$B/api/download?path=/sec.txt")" TOP-SECRET-PLAINTEXT-MARKER-12345
   chk "enc: disable auto-unlock" "$(code -b $J -X POST -d '{"enable":false}' $B/api/vault/autounlock)" 200
   chk "enc: auto-unlock key file removed" "$([ -e "$T/home/vault-auto.key" ] && echo present || echo gone)" gone
+fi
+
+# --- turning encryption on and off for an existing NAS (plain-mode run only) ---
+if [ "$ENC" = 0 ]; then
+  waitconv(){ for i in $(seq 1 40); do [ "$(curl -s -b $J $B/api/vault | grep -c '"running":false')" = 1 ] && return; sleep 0.5; done; }
+  echo "convert-marker-AAA" > "$T/cv.txt"; $C -X PUT --data-binary @$T/cv.txt "$B/api/upload?path=/&name=cv.txt" >/dev/null
+  chk "toggle: file is plain on disk to start with" "$(grep -c convert-marker-AAA "$T/store/users/admin/cv.txt")" 1
+  chk "toggle: short passphrase refused" "$(code -b $J -X POST -d '{"mode":"encrypt","passphrase":"short"}' $B/api/vault/convert)" 400
+  chk "toggle: login password refused as passphrase" "$(code -b $J -X POST -d '{"mode":"encrypt","passphrase":"password123"}' $B/api/vault/convert)" 400
+  R=$($C -X POST -d "{\"mode\":\"encrypt\",\"passphrase\":\"$PASS_PHRASE\"}" $B/api/vault/convert)
+  chk "toggle: turning encryption on returns a recovery key" "$(echo "$R" | grep -c '"recovery_key":"')" 1
+  waitconv
+  chk "toggle: existing file is now encrypted on disk" "$(grep -c convert-marker-AAA "$T/store/users/admin/cv.txt")" 0
+  chk "toggle: no plaintext left anywhere" "$(grep -rl convert-marker-AAA "$T/store/users" | wc -l)" 0
+  chk "toggle: app still opens the file (no lock screen)" "$($C "$B/api/download?path=/cv.txt")" convert-marker-AAA
+  chk "toggle: size shown is the real size" "$($C "$B/api/list?path=/" | python3 -c "import sys,json;print([i['size'] for i in json.load(sys.stdin)['items'] if i['name']=='cv.txt'][0])")" 19
+  chk "toggle: status says encrypted and unlocked" "$(curl -s $B/api/status | grep -c '"encrypted":true,')$(curl -s $B/api/status | grep -c '"locked":false')" 11
+  echo "new-after-on-BBB" > "$T/cv2.txt"; $C -X PUT --data-binary @$T/cv2.txt "$B/api/upload?path=/&name=cv2.txt" >/dev/null
+  chk "toggle: new upload is encrypted" "$(grep -c new-after-on-BBB "$T/store/users/admin/cv2.txt")" 0
+  chk "toggle: wrong passphrase cannot turn it off" "$(code -b $J -X POST -d '{"mode":"decrypt","passphrase":"not the passphrase"}' $B/api/vault/convert)" 401
+  chk "toggle: turning encryption off" "$(code -b $J -X POST -d "{\"mode\":\"decrypt\",\"passphrase\":\"$PASS_PHRASE\"}" $B/api/vault/convert)" 200
+  waitconv
+  chk "toggle: files are plain on disk again" "$(grep -c convert-marker-AAA "$T/store/users/admin/cv.txt")$(grep -c new-after-on-BBB "$T/store/users/admin/cv2.txt")" 11
+  chk "toggle: key file removed" "$([ -e "$T/store/.nestnas-vault" ] && echo present || echo gone)" gone
+  chk "toggle: status says not encrypted" "$(curl -s $B/api/status | grep -c '"encrypted":true')" 0
+  chk "toggle: app still opens the file" "$($C "$B/api/download?path=/cv.txt")" convert-marker-AAA
+  chk "toggle: key-less upload is plain again" "$(echo plain-again-CCC > "$T/c3.txt"; $C -X PUT --data-binary @$T/c3.txt "$B/api/upload?path=/&name=c3.txt" >/dev/null; grep -c plain-again-CCC "$T/store/users/admin/c3.txt")" 1
 fi
 exit $fail

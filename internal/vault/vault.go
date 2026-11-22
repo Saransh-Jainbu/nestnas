@@ -413,6 +413,19 @@ func (w *writer) Close() error {
 	return w.err
 }
 
+// IsEncrypted reports whether f (of the given on-disk size) starts with a NestNAS file header.
+// It needs no key, so it also works while the vault is locked.
+func IsEncrypted(f io.ReaderAt, size int64) bool {
+	if size < hdrSize+tagSize {
+		return false
+	}
+	hdr := make([]byte, 8)
+	if _, err := f.ReadAt(hdr, 0); err != nil {
+		return false
+	}
+	return string(hdr[:4]) == magic && hdr[4] == 1 && hdr[5] == chunkLog2
+}
+
 // PlainSize returns the plaintext size of an encrypted file of the given on-disk size.
 func PlainSize(size int64) int64 {
 	if size < hdrSize+tagSize {
