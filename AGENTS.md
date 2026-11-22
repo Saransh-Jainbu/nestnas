@@ -1,0 +1,100 @@
+# AGENTS.md
+
+Guidance for contributors, human or AI, working on NestNAS.
+
+## What this is
+
+NestNAS turns any laptop into a private cloud: web file manager, previews and gallery, phone backup, per-user quotas, trash, share links, built-in WebDAV drive, optional at-rest encryption, HTTPS with its own CA, Tailscale remote access, one-click Docker apps, static sites. **Goal: a non-technical person can install and use it with zero config files.** Single Go program, stdlib only (core), MIT licensed.
+
+## Commands
+
+```bash
+make build     # ./nestnas
+make test      # go vet + go test
+make smoke     # end-to-end tests (scripts/smoke.sh): runs a real server TWICE, plain and SMOKE_ENCRYPT=1
+make dist      # cross-compile + SHA256SUMS
+make desktop   # native window (needs libgtk-3-dev libwebkit2gtk-4.0-dev)
+```
+
+Run `make test && make smoke` before saying anything works. Both must pass. Also check cross-compiles, since Unix-only calls (e.g. `syscall.Stat_t`) silently break Windows and no test notices:
+
+```bash
+for t in windows/amd64 darwin/amd64 linux/arm64; do GOOS=${t%/*} GOARCH=${t#*/} go build -o /dev/null . && echo "$t ok"; done
+(cd desktop && GOOS=windows go vet .)
+```
+
+## Layout
+
+```
+main.go                 CLI: serve | service | version
+pkg/app                 public, stdlib-only API to embed the server (used by desktop/)
+desktop                 native window (separate module, Wails); build: make desktop
+internal/config         users, quotas, share links; JSON file, atomic writes, mutex
+internal/auth           password hashing; hand-written PBKDF2, HKDF, scrypt (RFC-vector tested)
+internal/vault          at-rest file encryption (format NNE1) and key management
+internal/tlsutil        private CA (name-constrained) and TLS 1.3 server config
+internal/fsx            symlink-safe path jail (Resolve), DirSize, ValidName
+internal/server         HTTP API, sessions, files, WebDAV, previews, backup, trash, apps, device setup
+internal/service        autostart: systemd user unit / launchd / Task Scheduler
+internal/web            index.html (the whole UI, one file) + icon, embedded with go:embed
+```
+
+## Hard constraints
+
+- **Go 1.18 compatible** (`go.mod` says 1.18). No `atomic.Int64`, `errors.Join`, `slices`/`maps` packages, `min`/`max` builtins, `for range int`, generics-heavy code. `strings.Cut` and `os.ReadDir` are fine.
+- **Stdlib only in the root module.** Zero dependencies is a feature (tiny audit surface, trivial builds). The native desktop app lives in its own module `desktop/` (Wails v2.6.0, the newest release compatible with Go 1.18) and imports the core only through the public `pkg/app` package; `internal/` stays private. Never add Wails or other dependencies to the root `go.mod`.
+- **No separate frontend build.** UI stays vanilla JS in `internal/web/index.html`. No npm, no bundler.
+- **Beginner-first.** Any new feature must be usable from the web UI. Error messages are plain English, not Go errors.
+- Cross-platform: `GOOS=windows`/`darwin` must still compile (use build tags like `disk_unix.go`/`disk_windows.go`). Building macOS arm64 can fail on very old local Go toolchains; rely on CI for that target.
+
+## Security invariants (do not weaken)
+
+1. **Every user-supplied path goes through `fsx.Resolve(root, rel)`**, and each user is rooted at `<storage>/users/<name>`. It defends against `..` and symlinks. Never `filepath.Join` user input directly. Single names (upload filename, rename target) must pass `fsx.ValidName`.
+2. **Passwords** only via `auth.Hash`/`auth.Verify`; compare in constant time. Login is rate-limited per IP; unknown users burn equal hash time.
+3. **CSRF:** all non-GET requests have their `Origin` checked against `Host` in `Server.Handler`, and cookies are `HttpOnly; SameSite=Strict` (+ `Secure` over TLS). New mutating endpoints must be POST/PUT (never GET) and go through the same mux.
+4. **Authorization:** wrap handlers in `s.authed` or `s.adminOnly`. Users may only touch their own folder and their own shares. The last admin cannot be deleted.
+5. **User-uploaded sites** (`/sites/<user>/`) are served with `Content-Security-Policy: sandbox` so they can never call the admin API. Downloads and share links use `Content-Disposition: attachment`.
+6. **Quota** is enforced at upload using a fresh disk scan plus a `LimitReader`; the free-disk check keeps a reserve.
+7. **Never bind plain HTTP to a non-loopback address** (see Encryption below). Don't suggest port-forwarding NestNAS to the internet.
+
+## Encryption and TLS (`internal/vault`, `internal/tlsutil`, `internal/server/crypt.go`)
+
+- **All file-content I/O must go through `s.openContent` / `s.newContentWriter` / `s.plainSize`** (never `os.Open` + `ServeContent`, never `io.Copy` straight into the temp file). Sizes shown to users are plaintext sizes. When adding an endpoint that reads or writes content, add it to `smoke.sh` and run **both modes**.
+- Vault format "NNE1": per-file key = HKDF(master, fileSalt); nonce = chunk counter; AAD = header + last-chunk flag. Never reuse a (key, nonce); never write chunk data without the AAD. The master key lives only in memory (`vault.Lock()` zeroes it) and in the passphrase/recovery wraps in `<storage>/.nestnas-vault`. The auto-unlock key file `<home>/vault-auto.key` exists only if the owner opted in.
+- `lockExempt()` (vaultapi.go) lists API paths allowed while locked; everything touching content returns 423. WebDAV, share links and sites check `locked()` too.
+- KDFs are hand-written in `internal/auth/kdf.go` and verified against RFC vectors and OpenSSL; don't change them without re-running those tests.
+- `app.Start` serves plain HTTP **only on 127.0.0.1** (behind `localOnly`, which rejects non-local Host headers), HTTPS (TLS 1.3 only) on the LAN port, and a **device-setup** listener (plain HTTP, default 8081) that serves **only** public CA material (`/`, `/NestNAS.mobileconfig`, `/ca.crt`, `/ca.cer`). Never add another route to `SetupHandler`; it must never reach the API, files, WebDAV or the CA private key (guarded by tests). It exists because iOS won't install a profile fetched over an untrusted HTTPS connection.
+- The local CA is name-constrained to private ranges; keep `ca.key` mode 0600 and never serve it.
+
+## Storage drive safety
+
+`storageOK()` (server.go) checks `<storage>/users` exists **freshly on every request** and that `<storage>/.nestnas-id` matches `config.StorageID` (marker read cached 2s). If not, `tryRelocate` scans `placesFn()` drives for `<mount>/<StorageSub>/.nestnas-id` and updates the storage path, so a drive replugged at a different mount point resumes by itself. `authed`, WebDAV, share links and sites return 503 when storage is missing. **Never use `MkdirAll` on a path that includes the storage root** (`userRoot` and `mkdirChain` use per-component `os.Mkdir`), or a just-unplugged drive's empty mount point would be silently recreated on the internal disk. Tests: `storage_test.go` and the "drive gone / back / wrong drive" smoke checks. Drive discovery for the setup picker is `places.go`.
+
+## Features worth knowing before you touch them
+
+- **WebDAV** (`dav.go`): in-house, HTTP Basic with the NestNAS login (successful logins cached 5 min; cleared on password change / user delete). All paths go through `davPath` (`fsx.Resolve` + the `.trash` block); DELETE and overwrite-by-MOVE/COPY go to the trash; PUT/COPY enforce quota. Keep the `dav:` smoke checks green. A real client check: `gio mount davs://user@host:8443/dav/` (needs the CA trusted).
+- **Trash** (`trash.go`): deleting moves to `<user>/.trash/<id>/{item,meta.json}`. `.trash` is unreachable through normal path APIs (`inTrash` in `resolve`), hidden from listings, excluded from zips, and counts toward quota until emptied.
+- **Previews** (`preview.go`): `/api/view` serves inline **only** extensions in `viewTypes` (fixed content type, `no-store`, CSP `sandbox` except PDF). **Never add `.html/.htm/.svg/.xml/.js`** (they can run script as the logged-in user; `TestViewAllowlist` guards this). `/api/thumb` decodes JPEG/PNG/GIF only, refuses > 80 megapixels, applies EXIF rotation, and keeps thumbnails in a memory-only LRU (never on disk, since storage may be encrypted).
+- **Backup** (`backup.go`): `/api/upload?backup=1` creates folders with `mkdirChain`, sets mtime from `mtime=`, skips identical (same size) files, and saves a different file with the same name as `name (2).ext` instead of overwriting. `/api/backup/check` returns which of ≤4000 `{path,size}` entries are missing. iOS Safari can't upload in the background; automatic phone backup would need a native app or Shortcuts.
+- **Phones:** iOS **Files cannot do WebDAV** (only SMB), so never tell users to "Connect to Server" with an https:// address. The web app is installable ("Add to Home Screen": manifest and icon in `pwa.go`, meta tags in index.html).
+
+## Conventions and gotchas
+
+- **JSON:** return empty slices as `[]` (initialise with `[]T{}`), never nil, or the UI gets `null` and crashes (this has bitten twice).
+- **UI:** all dynamic text goes through `esc()`; no `innerHTML` with unescaped data. State-changing buttons are wrapped in `guard()` to surface errors as toasts.
+- **Config changes** go through `config.Store` methods (they lock and save atomically); never mutate the struct directly.
+- **Long operations** (Docker image pulls, thumbnails) must not block unrelated requests; thumbnails are limited to 3 concurrent.
+- If you run NestNAS as a service pointing at the binary in your checkout, don't delete or overwrite that binary carelessly: rebuild (`go build -o nestnas .`) and run `./nestnas service install` (it restarts the service). A restart locks encrypted storage again.
+- Avoid `pkill -f <name>` in agent shell commands: the pattern can match your own shell. Kill by PID.
+- Format with `gofmt`; `go vet ./...` must be clean.
+
+## Testing notes
+
+- Unit tests: `auth` (RFC PBKDF2/HKDF/scrypt vectors, OpenSSL cross-check), `vault` (round trip, tamper detection, keys), `tlsutil` (real handshake, name constraints), `fsx` (path jail incl. symlinks), `service` (generated unit/plist/task text), `server` (storage drive, previews, backup, CA profile, device setup).
+- `scripts/smoke.sh <binary>` is the integration test (needs `curl`, `python3`, `openssl`). Add a check for any new endpoint, especially authorization, quota and encryption behaviour.
+- **Not covered by automated tests (needs real devices):** real Docker app installs, systemd/launchd/Task Scheduler registration on other OSes, Tailscale, and iPhone/Mac/Windows clients. Say so explicitly when reporting; don't claim they work.
+- Installing a real system service, or touching system config, while testing is out of bounds for agents: write unit tests or ask the user to run it.
+
+## Definition of done
+
+`gofmt` clean, `go vet` clean, `make test` and `make smoke` pass (both modes), cross-compiles pass, README updated if user-visible behaviour changed, and the final report states what was and was not verified.

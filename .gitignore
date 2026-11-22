@@ -1,0 +1,21 @@
+# build output
+/nestnas
+/nestnas-desktop
+/dist/
+*.test
+
+# local state that must never be committed
+*.key
+*.crt
+*.cer
+.nestnas/
+config.json
+vault-auto.key
+
+# editors, OS, tools
+.DS_Store
+.idea/
+.vscode/
+.claude/
+*.log
+*.swp

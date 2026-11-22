@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NestNAS</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NestNAS">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#12151b">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1c2330;--mute:#6b7585;--line:#e3e7ee;--accent:#3b6cf6;--accent2:#2f58cc;--bad:#d64545;--ok:#1f9d63}
+@media (prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1a1f28;--text:#e6e9ef;--mute:#8b95a5;--line:#2a313d;--accent:#6b93ff;--accent2:#8aa9ff;--bad:#ff6b6b;--ok:#3ddc97}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select{font:inherit}
+button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+button:hover{background:var(--accent2)}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+button.ghost:hover{background:var(--bg)}
+button.danger{background:transparent;color:var(--bad);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+input,select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+label{display:block;margin:12px 0 4px;font-weight:600;font-size:13px;color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
+.center{max-width:440px;margin:6vh auto;padding:0 16px}
+.logo{font-size:26px;font-weight:700;margin-bottom:4px}
+.mute{color:var(--mute)}.small{font-size:13px}
+.err{color:var(--bad);min-height:20px;margin-top:8px;font-size:14px}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header .logo{font-size:20px;margin:0}
+nav{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+nav button{background:transparent;color:var(--mute)}
+nav button.on{background:var(--bg);color:var(--text);font-weight:600}
+main{max-width:980px;margin:20px auto;padding:0 16px}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden}
+.bar>div{height:100%;background:var(--accent)}
+.bar.warn>div{background:var(--bad)}
+table{width:100%;border-collapse:collapse}
+td,th{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+tr.row:hover{background:var(--bg)}
+.name{cursor:pointer;word-break:break-all}
+.actions{white-space:nowrap;text-align:right}
+.actions button{padding:4px 9px;margin-left:4px;font-size:13px}
+.crumbs a{color:var(--accent);cursor:pointer}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--mute);margin-bottom:12px}
+.drop.over{border-color:var(--accent);background:var(--bg)}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:13px;position:relative}
+code{background:var(--bg);padding:1px 5px;border-radius:4px}
+.pill{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;background:var(--bg);border:1px solid var(--line)}
+.pill.ok{color:var(--ok)}.pill.bad{color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.th{width:40px;height:40px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;background:var(--bg)}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.gcard{cursor:pointer;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg)}
+.gcard:hover{border-color:var(--accent)}
+.gimg{aspect-ratio:1;display:grid;place-items:center}
+.gimg img{width:100%;height:100%;object-fit:cover;display:block}
+.gico{font-size:42px}
+.gname{padding:6px 8px;font-size:12px;word-break:break-all;max-height:3.4em;overflow:hidden}
+.seg{display:inline-flex}.seg button{border-radius:0;padding:6px 11px}.seg button:first-child{border-radius:8px 0 0 8px}.seg button:last-child{border-radius:0 8px 8px 0;margin-left:-1px}
+.seg button.on{background:var(--bg);color:var(--text);font-weight:700}
+.viewer{position:fixed;inset:0;background:rgba(8,10,14,.97);z-index:20;display:flex;flex-direction:column;color:#e6e9ef}
+.vbar{display:flex;align-items:center;gap:10px;padding:10px 14px}
+.vtitle{font-weight:600;word-break:break-all}
+.vb{color:#e6e9ef;border-color:#3a4252}
+.vstage{flex:1;display:flex;overflow:auto;padding:8px;min-height:0}
+.vstage>*{margin:auto}
+.vimg{max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in}
+.vimg.zoom{max-width:none;max-height:none;cursor:zoom-out}
+.vmedia{max-width:100%;max-height:100%}
+.vpdf{width:100%;height:100%;border:0;background:#fff;border-radius:6px}
+.vtext{width:min(900px,100%);height:100%;overflow:auto;background:#12151b;color:#e6e9ef;padding:14px;border-radius:8px;white-space:pre-wrap;word-break:break-word;margin:0}
+.vnav{position:absolute;top:50%;left:12px;transform:translateY(-50%);width:44px;height:64px;border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font-size:30px;padding:0;z-index:1}
+.vmsg{color:#aab}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:10px;max-width:90vw;z-index:9}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.row2{grid-template-columns:1fr}}
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+button{touch-action:manipulation}
+header{padding-top:calc(12px + env(safe-area-inset-top));padding-left:calc(20px + env(safe-area-inset-left));padding-right:calc(20px + env(safe-area-inset-right))}
+nav button{display:inline-flex;align-items:center;gap:6px}
+nav .ti{font-size:15px;line-height:1}
+.morebtn{display:none}
+.morerow{display:none}
+.sub{display:none}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tscroll table{min-width:520px}
+.sheet-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:min(520px,100%);background:var(--card);border-radius:16px 16px 0 0;padding:12px 12px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;max-height:88vh;overflow:auto}
+.sheet-t{font-weight:700;padding:4px 6px;word-break:break-all}
+.sheet-b{min-height:48px;text-align:left;font-size:16px;padding:10px 14px}
+.viewer{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+@media (hover:none) and (pointer:coarse){.drop{display:none}}
+@media (max-width:640px){
+  body{font-size:16px}
+  input,select{font-size:16px;padding:11px 12px}
+  button{min-height:44px;padding:10px 16px}
+  header{gap:10px;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top))}
+  header .logo{font-size:18px}
+  header>.mute{display:none}
+  header #out{min-height:36px;padding:6px 12px;font-size:14px;margin-left:auto}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:15;flex:none;flex-wrap:nowrap;gap:0;background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  nav button{flex:1;flex-direction:column;justify-content:center;gap:2px;min-height:50px;padding:6px 2px;font-size:11px;border-radius:10px}
+  nav button .ti{font-size:21px}
+  nav .sec{display:none}
+  nav .morebtn{display:flex}
+  main{margin:12px auto;padding:0 12px calc(92px + env(safe-area-inset-bottom))}
+  .card{padding:14px;border-radius:12px;margin-bottom:12px}
+  .center{margin:3vh auto}
+  .logo{font-size:22px}
+  .hide-sm{display:none}
+  .toolbar{gap:8px}
+  .toolbar .crumbs{flex:1 1 100%}
+  .toolbar>button,.toolbar>a{flex:1 1 auto}
+  #tbl thead{display:none}
+  #tbl,#tbl tbody{display:block;width:100%}
+  tr.row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;border-bottom:1px solid var(--line)}
+  tr.row td{border-bottom:0;padding:10px 4px}
+  tr.row td.name{display:flex;align-items:center;gap:10px;min-width:0}
+  tr.row .nm{display:flex;align-items:center;gap:10px;min-width:0}
+  tr.row .th{width:46px;height:46px;margin:0;flex:none}
+  tr.row .ic{font-size:30px;width:46px;text-align:center;flex:none}
+  tr.row .txt{min-width:0}
+  tr.row .fn{display:block;word-break:break-word}
+  .sub{display:block;font-size:12px;color:var(--mute)}
+  .actions button:not(.morerow){display:none}
+  .actions{padding-right:0}
+  .morerow{display:inline-flex;align-items:center;justify-content:center;width:44px;padding:0;font-size:22px}
+  .gal{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .gname{font-size:11px;padding:4px 6px}
+  .gico{font-size:30px}
+  pre,code{word-break:break-all;white-space:pre-wrap}
+  .tscroll table{min-width:460px}
+  .modal-ov{padding:0!important;align-items:flex-end!important}
+  .modal-card{width:100%!important;max-height:92vh!important;border-radius:16px 16px 0 0!important;padding-bottom:calc(14px + env(safe-area-inset-bottom))!important}
+  .vbar{flex-wrap:wrap;padding:8px 10px}
+  .vnav{width:48px;height:72px}
+  .vstage{padding:4px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const $app = document.getElementById("app");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => { if (n < 1024) return n + " B"; const u = ["KB","MB","GB","TB"]; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return n.toFixed(n < 10 ? 1 : 0) + " " + u[i]; };
+const GB = 1073741824;
+const state = { me: null, tab: "files", path: "", sys: null, storageOk: true, lockedShown: false, view: (() => { try { return localStorage.getItem("nn_view") || "list"; } catch (e) { return "list"; } })() };
+
+async function api(path, opts = {}) {
+  const o = { method: opts.body !== undefined ? "POST" : "GET", credentials: "same-origin", ...opts };
+  if (opts.body !== undefined && typeof opts.body === "object") { o.body = JSON.stringify(opts.body); o.headers = { "Content-Type": "application/json" }; }
+  const r = await fetch(path, o);
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (r.status === 401 && state.me) { state.me = null; boot(); throw new Error("Please log in again"); }
+  if (r.status === 423 && state.me && !state.lockedShown) { boot(); throw new Error("Storage is locked"); }
+  if (r.status === 503 && state.me && state.storageOk) { state.storageOk = false; viewShell(); } // drive unplugged: show the banner
+  if (!r.ok) throw new Error(j.error || ("Error " + r.status));
+  return j;
+}
+function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3500); }
+const guard = fn => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message); } };
+const $ = id => document.getElementById(id);
+
+async function boot() {
+  const st = await api("/api/status");
+  if (st.setup_needed) return viewSetup();
+  state.storageOk = st.storage_ok !== false;
+  if (!st.logged_in) return viewLogin();
+  state.lockedShown = false;
+  state.me = await api("/api/me");
+  if (st.locked) return viewLocked();
+  viewShell();
+}
+
+function viewSetup() {
+  $app.innerHTML = `<div class="center"><div class="card">
+    <div class="logo">🪺 Welcome to NestNAS</div>
+    <p class="mute">Turn this computer into your own cloud storage. Two minutes to set up.</p>
+    <label>Your username</label><input id="u" value="admin" autocomplete="username">
+    <label>Choose a password (8+ characters)</label><input id="p" type="password" autocomplete="new-password">
+    <label>How much space should NestNAS use? (GB)</label><input id="q" type="number" min="1" value="20">
+    <label>Where should files live?</label>
+    <div style="display:flex;gap:8px"><input id="s" placeholder="Default: NestNAS-Storage in your home folder"><button class="ghost" id="pick" type="button" style="white-space:nowrap">Choose folder…</button></div>
+    <div class="mute small" id="free" style="margin-top:4px"></div>
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:14px">
+      <label style="display:flex;gap:8px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="enc" checked style="width:auto"> 🔒 Encrypt all my files <span class="pill ok">recommended</span></label>
+      <div class="mute small" style="margin:4px 0 0 24px">Files are scrambled with AES-256 before they touch the disk. Anyone who steals the laptop or the external drive sees only unreadable data. Everything also travels encrypted (HTTPS).</div>
+      <div id="encbox" style="margin-top:8px">
+        <label>Encryption passphrase (12+ characters, different from your login password)</label><input id="pp" type="password" autocomplete="new-password" placeholder="e.g. four or five random words">
+        <label>Type it again</label><input id="pp2" type="password" autocomplete="new-password">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="auto" style="width:auto"> Unlock automatically when this computer starts</label>
+        <div class="mute small" style="margin-left:24px">More convenient, but then a thief who steals the whole laptop could read your files. Leave it off for the strongest protection; you unlock with your passphrase after each restart.</div>
+        <div class="small" style="margin-top:8px;color:var(--bad)">⚠ Nobody can reset this passphrase, not even us. You'll get a recovery key next; keep it somewhere safe.</div>
+      </div>
+    </div>
+    <div class="err" id="e"></div>
+    <button id="go" style="width:100%;margin-top:8px">Create my NAS</button>
+  </div></div>`;
+  $("pick").onclick = () => pickFolder($("s").value, p => { $("s").value = p; showFree(); });
+  $("q").oninput = showFree; $("s").onchange = showFree; showFree();
+  $("enc").onchange = () => { $("encbox").style.display = $("enc").checked ? "" : "none"; };
+  $("go").onclick = async () => {
+    const enc = $("enc").checked;
+    if (enc && $("pp").value !== $("pp2").value) { $("e").textContent = "The two passphrases don't match"; return; }
+    try {
+      const r = await api("/api/setup", { body: { username: $("u").value, password: $("p").value, quota_gb: +$("q").value, storage_path: $("s").value,
+        encrypt: enc, passphrase: $("pp").value, auto_unlock: enc && $("auto").checked } });
+      if (r.recovery_key) viewRecovery(r.recovery_key); else boot();
+    } catch (e) { $("e").textContent = e.message; }
+  };
+}
+
+// Shown once, right after setup: the recovery key is not stored anywhere else.
+function viewRecovery(key) {
+  $app.innerHTML = `<div class="center"><div class="card">
+    <div class="logo">🔑 Save your recovery key</div>
+    <p>If you ever forget your encryption passphrase, this key is the <b>only</b> way to get your files back. It is shown <b>once</b>.</p>
+    <pre style="font-size:16px;text-align:center;user-select:all;word-break:break-all;white-space:pre-wrap">${esc(key)}</pre>
+    <div class="toolbar"><button class="ghost" id="cp">Copy</button><button class="ghost" id="dl">Download as file</button><button class="ghost" id="pr">Print</button></div>
+    <p class="mute small">Keep it somewhere safe and <i>separate from this computer</i> (a password manager, a printout in a drawer). Anyone with this key can unlock your files.</p>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="ok" style="width:auto"> I saved my recovery key somewhere safe</label>
+    <button id="go" style="width:100%;margin-top:10px" disabled>Continue</button></div></div>`;
+  $("ok").onchange = () => { $("go").disabled = !$("ok").checked; };
+  $("cp").onclick = async () => { try { await navigator.clipboard.writeText(key); toast("Copied"); } catch (e) { toast("Select the key and copy it"); } };
+  $("dl").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["NestNAS recovery key\n\n" + key + "\n\nKeep this private. It unlocks all your files.\n"], { type: "text/plain" })); a.download = "NestNAS-recovery-key.txt"; a.click(); };
+  $("pr").onclick = () => window.print();
+  $("go").onclick = () => boot();
+}
+
+// Encrypted storage is locked (after a restart): an admin enters the passphrase.
+function viewLocked() {
+  state.lockedShown = true;
+  if (!state.me.admin) {
+    $app.innerHTML = `<div class="center"><div class="card"><div class="logo">🔒 Storage is locked</div><p class="mute">The NAS's files are encrypted and need to be unlocked by an admin. Please ask them, then reload this page.</p><button class="ghost" id="out">Log out</button></div></div>`;
+    $("out").onclick = async () => { await api("/api/logout", { body: {} }); state.me = null; boot(); }; return;
+  }
+  $app.innerHTML = `<div class="center"><div class="card"><div class="logo">🔒 Storage is locked</div>
+    <p class="mute">Your files are encrypted. Enter your encryption passphrase (or your recovery key) to unlock them.</p>
+    <label>Passphrase or recovery key</label><input id="sec" type="password" autocomplete="current-password">
+    <div class="err" id="e"></div>
+    <button id="go" style="width:100%;margin-top:8px">Unlock</button>
+    <button class="ghost" id="out" style="width:100%;margin-top:8px">Log out</button></div></div>`;
+  const go = async () => { $("go").disabled = true; try { await api("/api/vault/unlock", { body: { secret: $("sec").value } }); boot(); } catch (e) { $("e").textContent = e.message; $("go").disabled = false; } };
+  $("go").onclick = go; $("sec").onkeydown = e => { if (e.key === "Enter") go(); }; $("sec").focus();
+  $("out").onclick = async () => { await api("/api/logout", { body: {} }); state.me = null; boot(); };
+}
+
+// Shows free disk space for the chosen folder (works only on the NAS laptop itself).
+async function showFree() {
+  const el = $("free"); if (!el) return;
+  try {
+    const d = await api("/api/setup/browse?path=" + encodeURIComponent($("s").value || ""));
+    const want = (+$("q").value || 0) * GB;
+    el.textContent = `${fmt(d.free)} free on this disk.` + (want > d.free ? " ⚠ That's more than the free space." : "")
+      + (d.note ? " " + d.note : "") + (d.removable ? " Removable drive: if unplugged, your NAS pauses until it's back." : "");
+    el.style.color = want > d.free ? "var(--bad)" : "";
+  } catch (e) { el.textContent = ""; }
+}
+
+// A simple folder browser (the server lists folders on this laptop; browsers can't reveal real paths).
+function pickFolder(start, onPick) {
+  const ov = document.createElement("div");
+  ov.className = "modal-ov"; ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:10;padding:16px";
+  ov.innerHTML = `<div class="card modal-card" style="width:min(520px,100%);max-height:85vh;display:flex;flex-direction:column;margin:0">
+    <b>Choose where NestNAS keeps your files</b><div class="mute small" id="pp" style="word-break:break-all;margin:6px 0"></div>
+    <div class="toolbar"><button class="ghost" id="up">↑ Up</button><button class="ghost" id="hm">Home</button><button class="ghost" id="nf">+ New folder</button></div>
+    <div id="places" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+    <div id="list" style="overflow:auto;flex:1;min-height:160px;border:1px solid var(--line);border-radius:8px"></div>
+    <div class="mute small" id="info" style="margin:6px 0"></div><div class="err" id="perr"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" id="cancel">Cancel</button><button id="ok">Use this folder</button></div></div>`;
+  document.body.appendChild(ov);
+  const q = id => ov.querySelector("#" + id); let cur = "", parent = "", home = "";
+  async function load(p) {
+    try {
+      const d = await api("/api/setup/browse?path=" + encodeURIComponent(p || ""));
+      cur = d.path; parent = d.parent; home = d.home;
+      q("pp").textContent = cur; q("perr").textContent = "";
+      q("info").textContent = `${fmt(d.free)} free of ${fmt(d.total)} on this disk` + (d.writable ? "" : " · ⚠ can't write here") + (d.fs ? ` · ${d.fs}` : "")
+        + (d.note ? ` · ${d.note}` : "") + (d.removable ? " · Removable drive: if you unplug it, your NAS pauses until it's back." : "");
+      const pl = [{ name: "Home", path: d.home, free: 0 }, ...(d.places || [])];
+      q("places").innerHTML = pl.map((p, i) => `<button class="ghost" data-pl="${i}" style="padding:5px 10px;font-size:13px">${i ? "💽" : "🏠"} ${esc(p.name)}${p.free ? " · " + fmt(p.free) + " free" : ""}${p.removable ? " · external" : ""}</button>`).join("");
+      q("places").querySelectorAll("[data-pl]").forEach(b => b.onclick = () => load(pl[+b.dataset.pl].path));
+      q("ok").disabled = !d.writable;
+      q("list").innerHTML = d.dirs.length ? d.dirs.map((x, i) => `<div class="row" data-i="${i}" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)">📁 ${esc(x.name)}</div>`).join("") : `<div class="mute" style="padding:12px">No folders here. Use "New folder" or choose this one.</div>`;
+      q("list").querySelectorAll("[data-i]").forEach(el => el.onclick = () => load(cur.replace(/\/$/, "") + "/" + d.dirs[+el.dataset.i].name));
+    } catch (e) { q("perr").textContent = e.message; }
+  }
+  q("up").onclick = () => parent && load(parent); q("hm").onclick = () => load(home);
+  q("nf").onclick = async () => { const n = prompt("New folder name"); if (!n) return; try { await api("/api/setup/mkdir", { body: { path: cur, name: n } }); load(cur.replace(/\/$/, "") + "/" + n); } catch (e) { q("perr").textContent = e.message; } };
+  q("cancel").onclick = () => ov.remove();
+  q("ok").onclick = () => { onPick(cur); ov.remove(); };
+  load(start);
+}
+
+function viewLogin() {
+  $app.innerHTML = `<div class="center"><div class="card">
+    <div class="logo">🪺 NestNAS</div><p class="mute">Log in to your files.</p>
+    <label>Username</label><input id="u" autocomplete="username">
+    <label>Password</label><input id="p" type="password" autocomplete="current-password">
+    <div class="err" id="e"></div>
+    <button id="go" style="width:100%;margin-top:8px">Log in</button></div></div>`;
+  const go = async () => { try { await api("/api/login", { body: { username: $("u").value, password: $("p").value } }); boot(); } catch (e) { $("e").textContent = e.message; } };
+  $("go").onclick = go; $("p").onkeydown = e => { if (e.key === "Enter") go(); };
+}
+
+const TABS = [["files","Files",0,"📁"],["backup","Backup",0,"☁️"],["shares","Share links",0,"🔗"],["trash","Trash",0,"🗑️"],["connect","Connect",1,"📡"],["security","Security",1,"🔒"],["apps","Apps",1,"🧩"],["users","Users",1,"👥"],["account","Account",0,"👤"]];
+const PRIMARY = ["files", "backup", "trash"]; // shown in the phone bottom bar; the rest are under "More"
+let storageTimer = null;
+// While the drive is missing, check every few seconds and carry on automatically when it returns.
+function watchStorage() {
+  clearInterval(storageTimer); storageTimer = null;
+  if (state.storageOk) return;
+  storageTimer = setInterval(async () => {
+    try { const st = await fetch("/api/status").then(r => r.json()); if (st.storage_ok) { clearInterval(storageTimer); state.storageOk = true; viewShell(); } } catch (e) {}
+  }, 4000);
+}
+
+function viewShell() {
+  watchStorage();
+  const tabs = TABS.filter(t => !t[2] || state.me.admin);
+  $app.innerHTML = `<header><div class="logo">🪺 NestNAS</div>
+    <nav>${tabs.map(t => `<button data-t="${t[0]}" class="${PRIMARY.includes(t[0]) ? "pri" : "sec"} ${state.tab === t[0] ? "on" : ""}"><span class="ti">${t[3]}</span><span class="tl">${t[1]}</span></button>`).join("")}<button class="morebtn ${PRIMARY.includes(state.tab) ? "" : "on"}" id="more"><span class="ti">⋯</span><span class="tl">More</span></button></nav>
+    <span class="mute small">${esc(state.me.name)}</span><button class="ghost" id="out">Log out</button></header>
+    ${state.storageOk ? "" : `<div class="card" style="border-color:var(--bad);color:var(--bad);max-width:980px;margin:16px auto 0">⚠ Your storage drive isn't connected. Plug it back in and this page continues by itself. Nothing is being saved to this computer's own disk in the meantime.</div>`}
+    <main id="main"></main>`;
+  document.querySelectorAll("nav button[data-t]").forEach(b => b.onclick = () => { state.tab = b.dataset.t; viewShell(); });
+  $("more").onclick = () => sheet("More", tabs.filter(t => !PRIMARY.includes(t[0])).map(t => ({ icon: t[3], label: t[1], run: () => { state.tab = t[0]; viewShell(); } })));
+  $("out").onclick = async () => { await api("/api/logout", { body: {} }); state.me = null; boot(); };
+  ({ files: tabFiles, shares: tabShares, backup: tabBackup, trash: tabTrash, connect: tabConnect, security: tabSecurity, apps: tabApps, users: tabUsers, account: tabAccount })[state.tab]();
+}
+
+/* A phone-style bottom sheet of big buttons (used for "More" and per-file actions). */
+function sheet(title, actions) {
+  const ov = document.createElement("div"); ov.className = "sheet-ov";
+  ov.innerHTML = `<div class="sheet"><div class="sheet-t">${esc(title)}</div>${actions.map((a, i) => `<button class="sheet-b ${a.danger ? "danger" : "ghost"}" data-i="${i}">${a.icon || ""} ${esc(a.label)}</button>`).join("")}<button class="sheet-b" id="sx">Cancel</button></div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.onclick = e => { if (e.target === ov) close(); };
+  ov.querySelector("#sx").onclick = close;
+  ov.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { close(); actions[+b.dataset.i].run(); });
+}
+
+/* ---------------- Files ---------------- */
+async function tabFiles() {
+  const m = $("main");
+  state.me = await api("/api/me");
+  const pct = Math.min(100, state.me.used / state.me.quota * 100);
+  m.innerHTML = `<div class="card"><div style="display:flex;justify-content:space-between"><b>Your storage</b><span class="mute small">${fmt(state.me.used)} of ${fmt(state.me.quota)}</span></div>
+    <div class="bar ${pct > 90 ? "warn" : ""}" style="margin-top:8px"><div style="width:${pct}%"></div></div></div>
+    <div class="card"><div class="toolbar"><div class="crumbs" id="crumbs" style="flex:1"></div>
+    <span class="seg"><button class="ghost" id="vl" title="List view">☰</button><button class="ghost" id="vg" title="Photo gallery">▦</button></span>
+    <button class="ghost" id="mk">+ New folder</button><button id="up">Upload files</button><input type="file" id="file" multiple hidden></div>
+    <div class="drop" id="drop">Drop files here to upload</div><div class="small mute" id="prog" style="margin-bottom:8px"></div>
+    <table id="tbl"><thead><tr><th>Name</th><th class="hide-sm">Size</th><th class="hide-sm">Modified</th><th></th></tr></thead><tbody id="rows"></tbody></table><div class="gal" id="gal" hidden></div></div>`;
+  const parts = state.path.split("/").filter(Boolean);
+  let acc = ""; let html = `<a data-p="">Home</a>`;
+  parts.forEach(p => { acc += "/" + p; html += ` / <a data-p="${esc(acc)}">${esc(p)}</a>`; });
+  $("crumbs").innerHTML = html;
+  $("crumbs").querySelectorAll("a").forEach(a => a.onclick = () => { state.path = a.dataset.p; tabFiles(); });
+  $("mk").onclick = guard(async () => { const n = prompt("Folder name"); if (!n) return; await api("/api/mkdir", { body: { path: state.path + "/" + n } }); tabFiles(); });
+  $("up").onclick = () => $("file").click();
+  $("file").onchange = e => uploadAll(e.target.files);
+  const drop = $("drop");
+  ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", e => uploadAll(e.dataTransfer.files));
+  const setView = v => { state.view = v; try { localStorage.setItem("nn_view", v); } catch (e) {} tabFiles(); };
+  $("vl").onclick = () => setView("list"); $("vg").onclick = () => setView("gallery");
+  const data = await api("/api/list?path=" + encodeURIComponent(state.path));
+  const rows = $("rows"), gal = $("gal");
+  const fp = it => state.path + "/" + it.name;
+  const viewable = data.items.filter(it => !it.dir && kindOf(it.name));
+  const openIt = it => {
+    if (it.dir) { state.path = fp(it); tabFiles(); }
+    else if (kindOf(it.name)) openViewer(viewable.map(v => ({ name: v.name, path: fp(v), kind: kindOf(v.name) })), viewable.indexOf(it));
+    else location.href = "/api/download?path=" + encodeURIComponent(fp(it));
+  };
+  const thumb = (it, w) => `/api/thumb?path=${encodeURIComponent(fp(it))}&w=${w}`;
+  const icon = it => it.dir ? "📁" : ({ image: "🖼️", video: "🎬", audio: "🎵", pdf: "📕", text: "📝" }[kindOf(it.name)] || "📄");
+  const hasThumb = it => !it.dir && /\.(jpe?g|png|gif)$/i.test(it.name);
+  const gallery = state.view === "gallery";
+  $("vl").classList.toggle("on", !gallery); $("vg").classList.toggle("on", gallery);
+  $("tbl").hidden = gallery; gal.hidden = !gallery;
+  if (!data.items.length) { rows.innerHTML = `<tr><td colspan="4" class="mute">This folder is empty.</td></tr>`; gal.innerHTML = `<div class="mute">This folder is empty.</div>`; }
+  if (gallery) {
+    data.items.forEach(it => {
+      const c = document.createElement("div"); c.className = "gcard";
+      c.innerHTML = `<div class="gimg">${hasThumb(it) ? `<img loading="lazy" alt="" src="${thumb(it, 320)}">` : `<span class="gico">${icon(it)}</span>`}</div><div class="gname">${esc(it.name)}</div>`;
+      const img = c.querySelector("img"); if (img) img.onerror = () => { c.querySelector(".gimg").innerHTML = `<span class="gico">${icon(it)}</span>`; };
+      c.onclick = () => openIt(it); gal.appendChild(c);
+    });
+    return;
+  }
+  data.items.forEach(it => {
+    const full = fp(it);
+    const tr = document.createElement("tr"); tr.className = "row";
+    const canView = !it.dir && kindOf(it.name);
+    const when = new Date(it.mtime * 1000);
+    tr.innerHTML = `<td class="name"><div class="nm">${hasThumb(it) ? `<img class="th" loading="lazy" alt="" src="${thumb(it, 96)}">` : `<span class="ic">${icon(it)}</span>`}<div class="txt"><span class="fn">${esc(it.name)}</span><div class="sub">${it.dir ? "Folder" : fmt(it.size)} · ${when.toLocaleDateString()}</div></div></div></td><td class="hide-sm mute">${it.dir ? "" : fmt(it.size)}</td>
+      <td class="hide-sm mute">${when.toLocaleString()}</td>
+      <td class="actions">${canView ? `<button class="ghost" data-a="view">View</button>` : ""}${it.dir ? `<button class="ghost" data-a="zip">Zip</button>` : `<button class="ghost" data-a="dl">Download</button><button class="ghost" data-a="sh">Share</button>`}<button class="ghost" data-a="rn">Rename</button><button class="danger" data-a="rm">Delete</button><button class="ghost morerow" aria-label="Actions for ${esc(it.name)}">⋯</button></td>`;
+    const th = tr.querySelector("img.th"); if (th) th.onerror = () => { const sp = document.createElement("span"); sp.className = "ic"; sp.textContent = icon(it); th.replaceWith(sp); };
+    tr.querySelector(".name").onclick = () => openIt(it);
+    const act = guard(async (a) => {
+      if (a === "view") openIt(it);
+      if (a === "zip") location.href = "/api/zip?path=" + encodeURIComponent(full);
+      if (a === "dl") location.href = "/api/download?path=" + encodeURIComponent(full);
+      if (a === "rn") { const n = prompt("New name", it.name); if (n && n !== it.name) { await api("/api/rename", { body: { path: full, name: n } }); tabFiles(); } }
+      if (a === "rm") { if (confirm(`Move "${it.name}" to the trash? You can restore it later.`)) { await api("/api/delete", { body: { path: full } }); tabFiles(); } }
+      if (a === "sh") { const h = prompt("Link expires after how many hours? (0 = never)", "24"); if (h === null) return; const r = await api("/api/share", { body: { path: full, hours: +h || 0 } }); const link = location.origin + r.url; try { await navigator.clipboard.writeText(link); toast("Link copied: " + link); } catch (e) { prompt("Copy this link:", link); } }
+    });
+    tr.querySelectorAll("button[data-a]").forEach(b => b.onclick = () => act(b.dataset.a));
+    tr.querySelector(".morerow").onclick = e => {
+      e.stopPropagation();
+      const items = [];
+      if (canView) items.push({ icon: "👁️", label: "View", run: () => act("view") });
+      if (it.dir) items.push({ icon: "🗜️", label: "Download as zip", run: () => act("zip") });
+      else { items.push({ icon: "⬇️", label: "Download", run: () => act("dl") }); items.push({ icon: "🔗", label: "Share link", run: () => act("sh") }); }
+      items.push({ icon: "✏️", label: "Rename", run: () => act("rn") });
+      items.push({ icon: "🗑️", label: "Move to trash", danger: true, run: () => act("rm") });
+      sheet(it.name, items);
+    };
+    rows.appendChild(tr);
+  });
+}
+
+// What can be shown inside NestNAS (matches the server's allowlist; HTML/SVG are never previewed).
+function kindOf(name) {
+  const e = (name.split(".").pop() || "").toLowerCase();
+  if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "avif"].includes(e)) return "image";
+  if (["mp4", "m4v", "webm", "mov", "ogv"].includes(e)) return "video";
+  if (["mp3", "m4a", "wav", "ogg", "oga", "flac", "opus"].includes(e)) return "audio";
+  if (e === "pdf") return "pdf";
+  if (["txt", "md", "log", "csv", "json", "yml", "yaml"].includes(e)) return "text";
+  return "";
+}
+
+// Full-screen viewer: images, video, audio, PDFs and text, with ← → keys and swipe between files.
+function openViewer(items, start) {
+  let i = Math.max(0, start);
+  const ov = document.createElement("div"); ov.className = "viewer";
+  ov.innerHTML = `<div class="vbar"><span class="vtitle" id="vt"></span><span class="mute" id="vc"></span><span style="flex:1"></span>
+    <button class="ghost vb" id="vd">Download</button><button class="ghost vb" id="vx" aria-label="Close">✕</button></div>
+    <div class="vstage" id="vs"></div><button class="vnav" id="vp" aria-label="Previous">‹</button><button class="vnav" id="vn" aria-label="Next" style="left:auto;right:12px">›</button>`;
+  document.body.appendChild(ov);
+  const q = id => ov.querySelector("#" + id);
+  const src = it => "/api/view?path=" + encodeURIComponent(it.path);
+  function show() {
+    const it = items[i], st = q("vs"); st.innerHTML = "";
+    q("vt").textContent = it.name; q("vc").textContent = items.length > 1 ? `${i + 1} / ${items.length}` : "";
+    q("vp").hidden = q("vn").hidden = items.length < 2;
+    let el;
+    if (it.kind === "image") { el = document.createElement("img"); el.src = src(it); el.alt = it.name; el.className = "vimg"; el.onclick = () => el.classList.toggle("zoom"); }
+    else if (it.kind === "video") { el = document.createElement("video"); el.src = src(it); el.controls = true; el.autoplay = true; el.playsInline = true; el.className = "vmedia"; }
+    else if (it.kind === "audio") { el = document.createElement("audio"); el.src = src(it); el.controls = true; el.autoplay = true; }
+    else if (it.kind === "pdf") { el = document.createElement("iframe"); el.src = src(it); el.className = "vpdf"; el.title = it.name; }
+    else {
+      el = document.createElement("pre"); el.className = "vtext"; el.textContent = "Loading…";
+      fetch(src(it), { credentials: "same-origin" }).then(r => r.ok ? r.text() : Promise.reject()).then(t => { el.textContent = t.length > 500000 ? t.slice(0, 500000) + "\n\n… (cut off; download for the full file)" : t; }).catch(() => { el.textContent = "Couldn't load this file."; });
+    }
+    el.onerror = () => { st.innerHTML = `<div class="vmsg">Can't show this file here. Use Download.</div>`; };
+    st.appendChild(el);
+    const nx = items[(i + 1) % items.length]; if (items.length > 1 && nx.kind === "image") new Image().src = src(nx); // preload the next photo
+  }
+  const go = d => { i = (i + d + items.length) % items.length; show(); };
+  const close = () => { document.removeEventListener("keydown", key); ov.remove(); };
+  const key = e => { if (e.key === "Escape") close(); else if (e.key === "ArrowRight") go(1); else if (e.key === "ArrowLeft") go(-1); };
+  document.addEventListener("keydown", key);
+  q("vx").onclick = close; q("vp").onclick = () => go(-1); q("vn").onclick = () => go(1);
+  q("vd").onclick = () => { location.href = "/api/download?path=" + encodeURIComponent(items[i].path); };
+  let sx = null;
+  ov.addEventListener("touchstart", e => { sx = e.touches[0].clientX; }, { passive: true });
+  ov.addEventListener("touchend", e => { if (sx === null || items.length < 2) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1); });
+  ov.addEventListener("click", e => { if (e.target === ov || e.target.id === "vs") close(); });
+  show();
+}
+
+function uploadOne(file, folder, onprog) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("PUT", "/api/upload?path=" + encodeURIComponent(folder) + "&name=" + encodeURIComponent(file.name));
+    x.upload.onprogress = e => e.lengthComputable && onprog(e.loaded / e.total);
+    x.onload = () => { if (x.status === 200) resolve(); else { let m = "Upload failed"; try { m = JSON.parse(x.responseText).error; } catch (e) {} reject(new Error(file.name + ": " + m)); } };
+    x.onerror = () => reject(new Error(file.name + ": network error"));
+    x.send(file);
+  });
+}
+async function uploadAll(files) {
+  const folder = state.path;
+  for (const f of files) {
+    try { await uploadOne(f, folder, p => { const el = $("prog"); if (el) el.textContent = `— ${f.name} ${Math.round(p * 100)}%`; }); }
+    catch (e) { toast(e.message); }
+  }
+  tabFiles();
+}
+
+/* ---------------- Backup ---------------- */
+// Copies photos, videos or a whole folder from THIS device to the NAS. Safe to run again and
+// again: files the NAS already has are skipped, and nothing is ever overwritten.
+function deviceName() {
+  let n = ""; try { n = localStorage.getItem("nn_device") || ""; } catch (e) {}
+  if (n) return n;
+  const ua = navigator.userAgent;
+  return /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android phone" : "My computer";
+}
+const cleanName = s => (s || "").replace(/[\\/\x00-\x1f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40) || "Device";
+const gbText = n => fmt(n);
+
+function backupPath(dev, f, fromFolder) {
+  if (fromFolder && f.webkitRelativePath) return `/Backup/${dev}/${f.webkitRelativePath}`; // keep the folder structure
+  const d = new Date(f.lastModified || Date.now());
+  return `/Phone Backup/${dev}/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${f.name}`;
+}
+
+function putBackup(file, path, onprog) {
+  const i = path.lastIndexOf("/"), dir = path.slice(0, i) || "/", name = path.slice(i + 1);
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("PUT", `/api/upload?backup=1&path=${encodeURIComponent(dir)}&name=${encodeURIComponent(name)}&mtime=${Math.floor((file.lastModified || 0) / 1000)}`);
+    x.upload.onprogress = e => e.lengthComputable && onprog(e.loaded);
+    x.onload = () => {
+      let j = {}; try { j = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status === 200) resolve(j); else { const err = new Error(j.error || ("Error " + x.status)); err.status = x.status; reject(err); }
+    };
+    x.onerror = () => { const err = new Error("network error"); err.status = 0; reject(err); };
+    x.send(file);
+  });
+}
+
+async function tabBackup() {
+  const m = $("main"); state.me = await api("/api/me");
+  const touch = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  m.innerHTML = `
+  <div class="card"><b>Back up this ${touch ? "phone" : "computer"} to your NAS</b>
+    <p class="small mute">Copy photos, videos and files over your own Wi-Fi to your NAS storage. Run it as often as you like: anything already on the NAS is skipped, and nothing is ever overwritten or deleted.</p>
+    <label>Name of this device</label><input id="bd" value="${esc(deviceName())}" maxlength="40">
+    <div class="toolbar" style="margin-top:12px"><button id="bp">${touch ? "Choose photos &amp; videos" : "Choose photos &amp; videos"}</button>
+      ${touch ? "" : `<button class="ghost" id="bf">Choose a folder…</button>`}
+      <input type="file" id="fp" multiple accept="image/*,video/*,.heic,.heif,.mov,.mp4" hidden>
+      <input type="file" id="ff" webkitdirectory multiple hidden></div>
+    <div id="bsel" class="small" style="margin-top:8px"></div>
+    <div id="bui"></div>
+  </div>
+  <div class="card small"><b>Freeing up iCloud space</b>
+    <ol style="padding-left:20px;margin:6px 0">
+      <li>Back up here and check the totals below match what you selected.</li>
+      <li>Open a few files in the <b>Files</b> tab to confirm they look right.</li>
+      <li>Only then delete the originals from your phone or iCloud. Deleted items stay in <i>Recently Deleted</i> for 30 days.</li>
+    </ol>
+    <p class="mute small" style="margin:0">Your files stay encrypted on the NAS (if you turned encryption on). On an iPhone the page must stay open and the screen on while it uploads.</p></div>
+  <div class="card small"><b>Where do the files go?</b><p class="mute small" style="margin:4px 0 0">Photos and videos: <code>Phone Backup / your device / year / month</code>, using each photo's own date. Folders: <code>Backup / your device / the folder</code>. Browse them in the <b>Files</b> tab.</p></div>`;
+  let entries = [], fromFolder = false, running = false, cancel = false;
+  const pick = folder => { fromFolder = folder; (folder ? $("ff") : $("fp")).click(); };
+  $("bp").onclick = () => pick(false); if ($("bf")) $("bf").onclick = () => pick(true);
+  const picked = e => {
+    const files = Array.from(e.target.files || []).filter(f => !f.name.startsWith("."));
+    e.target.value = "";
+    const dev = cleanName($("bd").value); try { localStorage.setItem("nn_device", dev); } catch (er) {}
+    entries = files.map(f => ({ f, path: backupPath(dev, f, fromFolder) }));
+    const total = entries.reduce((a, x) => a + x.f.size, 0);
+    $("bsel").innerHTML = entries.length ? `<b>${entries.length}</b> files selected (${gbText(total)}).` : "";
+    $("bui").innerHTML = entries.length ? `<button id="go" style="margin-top:8px">Start backup</button>` : "";
+    if (total > state.me.quota - state.me.used) $("bsel").innerHTML += `<div class="err">⚠ That's more than the space you have left (${gbText(Math.max(0, state.me.quota - state.me.used))}). Ask the admin for more, or choose fewer files.</div>`;
+    if ($("go")) $("go").onclick = guard(run);
+  };
+  $("fp").onchange = picked; $("ff").onchange = picked;
+
+  async function run() {
+    if (running) return; running = true; cancel = false;
+    const total = entries.reduce((a, x) => a + x.f.size, 0);
+    $("bui").innerHTML = `<div class="bar" style="margin-top:10px"><div id="pb" style="width:0%"></div></div>
+      <div class="small" id="pt" style="margin-top:6px">Checking what's already on your NAS…</div><div class="small mute" id="pc"></div>
+      <div class="err" id="pe"></div><button class="ghost" id="cn" style="margin-top:8px">Stop</button>`;
+    $("cn").onclick = () => { cancel = true; $("cn").disabled = true; $("pt").textContent = "Stopping after the current files…"; };
+    let lock = null; try { if (navigator.wakeLock) lock = await navigator.wakeLock.request("screen"); } catch (e) {}
+    let done = 0, newCount = 0, newBytes = 0, skipped = 0, failed = [], sent = 0, stopMsg = "";
+    try {
+      // 1. ask the NAS which files it is missing (in batches)
+      const missing = [];
+      for (let i = 0; i < entries.length; i += 1000) {
+        const batch = entries.slice(i, i + 1000);
+        const r = await api("/api/backup/check", { body: { files: batch.map(x => ({ path: x.path, size: x.f.size })) } });
+        r.missing.forEach(k => missing.push(batch[k]));
+        skipped += r.have;
+      }
+      const todo = missing, todoBytes = todo.reduce((a, x) => a + x.f.size, 0);
+      const upd = (cur) => {
+        const pct = todoBytes ? Math.min(100, (sent + cur) / todoBytes * 100) : 100;
+        $("pb").style.width = pct + "%";
+        $("pt").textContent = todo.length ? `Uploading… ${done} of ${todo.length} files (${gbText(sent + cur)} of ${gbText(todoBytes)})` : "Everything is already backed up.";
+      };
+      upd(0);
+      $("pc").textContent = `${skipped} files were already on your NAS and are skipped.`;
+      // 2. upload what is missing, two at a time, retrying flaky Wi-Fi
+      let next = 0; const live = {};
+      async function worker() {
+        while (!cancel && !stopMsg) {
+          const k = next++; if (k >= todo.length) return;
+          const it = todo[k]; let ok = false, err = null;
+          for (let attempt = 0; attempt < 3 && !cancel; attempt++) {
+            try {
+              live[k] = 0;
+              await putBackup(it.f, it.path, n => { live[k] = n; upd(Object.values(live).reduce((a, b) => a + b, 0) - 0); });
+              ok = true; break;
+            } catch (e) {
+              err = e;
+              if (e.status === 413 || e.status === 507 || e.status === 503 || e.status === 423) { stopMsg = e.message; break; } // no point retrying these
+              await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+            }
+          }
+          delete live[k];
+          if (ok) { sent += it.f.size; newCount++; newBytes += it.f.size; } else if (!stopMsg) failed.push(`${it.f.name}: ${err ? err.message : "failed"}`);
+          done++; upd(Object.values(live).reduce((a, b) => a + b, 0));
+        }
+      }
+      await Promise.all([worker(), worker()]);
+    } finally { if (lock) try { lock.release(); } catch (e) {} running = false; }
+    const left = entries.length - skipped - newCount - failed.length;
+    $("bui").innerHTML = `<div style="margin-top:10px"><b>${stopMsg || cancel ? "Stopped." : failed.length ? "Finished with some problems." : "✓ Backup finished."}</b>
+      <div class="small">${newCount} new files backed up (${gbText(newBytes)}) · ${skipped} already there${failed.length ? ` · <span style="color:var(--bad)">${failed.length} failed</span>` : ""}${(stopMsg || cancel) && left > 0 ? ` · ${left} not done yet` : ""}</div>
+      ${stopMsg ? `<div class="err">${esc(stopMsg)}</div>` : ""}
+      ${failed.length ? `<details class="small"><summary>Show failed files</summary>${failed.slice(0, 50).map(esc).join("<br>")}</details>` : ""}
+      <div class="small mute" style="margin-top:6px">${failed.length || stopMsg || cancel ? "Just run it again; it only uploads what's still missing." : "You can now check the files in the Files tab."}</div>
+      <button class="ghost" id="again" style="margin-top:8px">Back up more</button></div>`;
+    $("again").onclick = () => tabBackup();
+    state.me = await api("/api/me").catch(() => state.me);
+  }
+}
+
+/* ---------------- Share links ---------------- */
+async function tabShares() {
+  const m = $("main"); const d = await api("/api/shares");
+  m.innerHTML = `<div class="card"><b>Your share links</b><p class="mute small">Anyone with a link can download that file, no login needed. Create links from the Files tab.</p>
+  <div class="tscroll"><table><thead><tr><th>File</th><th>Expires</th><th></th></tr></thead><tbody>${d.shares.map(s => `<tr><td>${esc(s.path)}</td><td class="mute">${s.expires ? new Date(s.expires * 1000).toLocaleString() : "never"}</td>
+  <td class="actions"><button class="ghost" data-c="${s.token}">Copy link</button><button class="danger" data-d="${s.token}">Revoke</button></td></tr>`).join("") || `<tr><td colspan="3" class="mute">No active links.</td></tr>`}</tbody></table></div></div>`;
+  m.querySelectorAll("[data-c]").forEach(b => b.onclick = async () => { const l = location.origin + "/s/" + b.dataset.c; try { await navigator.clipboard.writeText(l); toast("Copied"); } catch (e) { prompt("Copy:", l); } });
+  m.querySelectorAll("[data-d]").forEach(b => b.onclick = guard(async () => { await api("/api/share/delete", { body: { token: b.dataset.d } }); tabShares(); }));
+}
+
+/* ---------------- Trash ---------------- */
+async function tabTrash() {
+  const m = $("main"); const d = await api("/api/trash");
+  m.innerHTML = `<div class="card"><div class="toolbar"><b style="flex:1">Trash</b>${d.items.length ? '<button class="danger" id="empty">Empty trash</button>' : ""}</div>
+  <p class="mute small">Deleted items stay here for ${d.days} days, then are removed automatically. Trash still counts toward your storage until you empty it.</p>
+  <div class="tscroll"><table><thead><tr><th>Name</th><th class="hide-sm">Was in</th><th class="hide-sm">Size</th><th>Deleted</th><th></th></tr></thead><tbody>${d.items.map(i => `<tr><td>${i.dir ? "📁" : "📄"} ${esc(i.name)}</td>
+  <td class="hide-sm mute">${esc(i.orig.slice(0, i.orig.lastIndexOf("/")) || "/")}</td><td class="hide-sm mute">${fmt(i.size)}</td><td class="mute">${new Date(i.deleted * 1000).toLocaleDateString()}</td>
+  <td class="actions"><button class="ghost" data-r="${esc(i.id)}">Restore</button><button class="danger" data-d="${esc(i.id)}">Delete forever</button></td></tr>`).join("") || `<tr><td colspan="5" class="mute">The trash is empty.</td></tr>`}</tbody></table></div></div>`;
+  m.querySelectorAll("[data-r]").forEach(b => b.onclick = guard(async () => { const r = await api("/api/trash/restore", { body: { id: b.dataset.r } }); toast("Restored to " + r.restored); tabTrash(); }));
+  m.querySelectorAll("[data-d]").forEach(b => b.onclick = guard(async () => { if (confirm("Delete forever? This can't be undone.")) { await api("/api/trash/delete", { body: { id: b.dataset.d } }); tabTrash(); } }));
+  const e = $("empty"); if (e) e.onclick = guard(async () => { if (confirm("Permanently delete everything in the trash?")) { await api("/api/trash/empty", { body: {} }); tabTrash(); } });
+}
+
+/* ---------------- Connect ---------------- */
+async function tabConnect() {
+  const m = $("main"); const s = state.sys = await api("/api/system"); const me = state.me = await api("/api/me");
+  const base = s.urls[0] || "http://YOUR-IP:8080"; const hostport = base.replace(/^http:\/\//, ""); const ip = hostport.replace(/:\d+$/, "");
+  const r = s.remote;
+  m.innerHTML = `
+  <div class="card"><b>1. On your home Wi-Fi</b><p class="mute small">Open any of these on a phone or another computer on the same network. They are encrypted (HTTPS); on a new device install the certificate first (<b>Security</b> tab).</p>
+    ${s.urls.map(u => `<div><code>${esc(u)}</code></div>`).join("") || "<div class='mute'>No network detected.</div>"}</div>
+  <div class="card"><b>2. Network drive (iPhone, Mac, Windows, Linux)</b> <span class="pill ok">Built in</span>
+    <p class="small">Mount your NAS like a normal drive. Sign in with your <b>NestNAS username and password</b>; you only see your own folder.</p>
+    <pre>${esc(base)}/dav/</pre>
+    <table class="small"><tbody>
+      <tr><td><b>iPhone / iPad</b></td><td><b>Apple's Files app can't use WebDAV</b>. Instead: <b>(1)</b> use NestNAS in Safari and tap Share → <i>Add to Home Screen</i> (it then opens like an app, and uploads straight from your Photos); or <b>(2)</b> install a free WebDAV app such as <i>Documents by Readdle</i> → Add connection → WebDAV → this address, your NestNAS username and password.</td></tr>
+      <tr><td><b>Android</b></td><td>Open NestNAS in Chrome → ⋮ → <i>Add to Home screen</i>. Or use a WebDAV app (e.g. Solid Explorer, CX File Explorer) with this address.</td></tr>
+      <tr><td><b>Mac</b></td><td>Finder → Go → <i>Connect to Server…</i> (⌘K) → paste the address</td></tr>
+      <tr><td><b>Linux</b></td><td>Files → <i>Other Locations</i> → paste <code>${s.tls.enabled ? "davs" : "dav"}://${esc(hostport)}/dav/</code></td></tr>
+      <tr><td><b>Windows</b></td><td>This PC → <i>Map network drive</i> → paste the address. Windows needs the NestNAS certificate installed first (Security tab); over HTTPS it then works normally.</td></tr>
+    </tbody></table>
+  </div>
+  <div class="card"><b>3. From anywhere (remote access)</b> <span class="pill ${r.connected ? "ok" : "bad"}">${r.connected ? "Connected" : r.installed ? "Not signed in" : "Not installed"}</span>
+    ${r.connected ? `<p>Reach your NAS anywhere at <code>https://${esc(r.IP || r.ip)}:${esc(s.tls.port)}</code> from any device signed in to your Tailscale account.</p>` :
+    `<p class="mute small">Uses free Tailscale: a private encrypted link, no router settings or port-forwarding. Your NAS is never exposed to the open internet.</p><pre>${esc(r.hint)}</pre>`}</div>
+  <div class="card"><b>Disk</b><p class="small mute">Files live in <code>${esc(s.storage_path)}</code>. Disk: ${fmt(s.disk_free)} free of ${fmt(s.disk_total)}. Space promised to users: ${fmt(s.allotted)}.
+    ${s.allotted > s.disk_free && s.disk_free ? "<br><b style='color:var(--bad)'>Heads up:</b> user allowances add up to more than the free disk space." : ""}</p></div>`;
+}
+
+/* ---------------- Security ---------------- */
+async function tabSecurity() {
+  const m = $("main"); const s = await api("/api/system"); const t = s.tls, e = s.encryption;
+    const addr = (s.urls[0] || "https://YOUR-IP:8443");
+  m.innerHTML = `
+  <div class="card"><b>In transit: HTTPS</b> <span class="pill ${t.enabled ? "ok" : "bad"}">${t.enabled ? "TLS 1.3 on" : "Off"}</span>
+    <p class="small">Everything between your other devices and this computer is encrypted (TLS 1.3, ECDSA P-256). Plain HTTP only works on this computer itself, where it never touches the network.</p>
+    ${t.enabled ? `<p class="small">Address for other devices: <code>${esc(addr)}</code></p>
+    ${t.setup_urls && t.setup_urls.length ? `<p class="small"><b>Easiest:</b> on the new phone or computer, open this in its browser (on your own Wi-Fi) and follow the page: <code>${esc(t.setup_urls[0])}</code><br><span class="mute">It only offers the public certificate; nothing else on your NAS is reachable there.</span></p>` : ""}
+    <p class="small"><b>One-time step per device:</b> install NestNAS's certificate so the device trusts it. It is limited to private network addresses, so it can never be used to impersonate a public website.</p>
+    <div class="toolbar"><a href="/NestNAS.mobileconfig"><button>iPhone / iPad / Mac profile</button></a><a href="/ca.crt"><button class="ghost">Certificate (.crt)</button></a><a href="/ca.cer"><button class="ghost">Binary (.cer)</button></a></div>
+    <p class="mute small">Check on the new device that the fingerprint matches before trusting:</p>
+    <pre style="font-size:12px;white-space:pre-wrap;word-break:break-all">${esc(t.fingerprint)}</pre>
+    <details><summary class="small" style="cursor:pointer">How to install it</summary><table class="small"><tbody>
+      <tr><td><b>iPhone / iPad</b></td><td>In <b>Safari</b> (not Chrome or another app) open <code>${esc((t.setup_urls && t.setup_urls[0]) || addr)}</code> and tap <i>Download the NestNAS profile</i>. Tap <i>Allow</i> → Settings → <i>Profile Downloaded</i> → Install (it says "Not Signed"; that's normal). Then Settings → General → About → <i>Certificate Trust Settings</i> → turn on <i>NestNAS Local CA</i>.</td></tr>
+      <tr><td><b>Mac</b></td><td>Double-click the file → Keychain Access opens → double-click the certificate → Trust → <i>Always Trust</i>.</td></tr>
+      <tr><td><b>Windows</b></td><td>Double-click the file → Install Certificate → Local Machine → place in <i>Trusted Root Certification Authorities</i>.</td></tr>
+      <tr><td><b>Android</b></td><td>Settings → Security → Encryption &amp; credentials → Install a certificate → <i>CA certificate</i>.</td></tr>
+      <tr><td><b>Linux</b></td><td><code>sudo cp NestNAS-CA.crt /usr/local/share/ca-certificates/ &amp;&amp; sudo update-ca-certificates</code> (Firefox keeps its own list: Settings → Certificates).</td></tr>
+    </tbody></table></details>` : `<p class="small mute">Start NestNAS without <code>--tls-port -1</code> to turn HTTPS on.</p>`}</div>
+  <div class="card"><b>At rest: file encryption</b> <span class="pill ${e.enabled ? (e.locked ? "bad" : "ok") : "bad"}">${e.enabled ? (e.locked ? "Locked" : "On · unlocked") : "Off"}</span>
+    ${e.enabled ? `<p class="small">Every file is encrypted with AES-256-GCM before it is written to the drive, each with its own key. The key is protected by your passphrase (memory-hard scrypt) and a recovery key. Tampering with a file on disk is detected.</p>
+      <p class="small mute">Not hidden: file and folder <i>names</i>, sizes and dates. File <i>contents</i> are encrypted.</p>
+      <div class="toolbar"><button class="ghost" id="lk">Lock now</button><button class="ghost" id="cpw">Change passphrase</button>
+        <button class="ghost" id="au">${e.auto_unlock ? "Turn off auto-unlock" : "Turn on auto-unlock"}</button></div>
+      <p class="mute small">${e.auto_unlock ? "Auto-unlock is ON: the key is kept on this computer's own disk so NestNAS unlocks itself when it starts. That protects a stolen external drive, but not a stolen laptop." : "Auto-unlock is off: after each restart an admin enters the passphrase (strongest protection)."}</p>
+      <p class="mute small">With encryption on, apps that read your files directly (such as Jellyfin's media library) can't be used; the web app and WebDAV work normally.</p>`
+    : `<p class="small mute">Encryption wasn't turned on when this NAS was set up, so files are stored as ordinary files. (Enabling it later, with automatic conversion of existing files, is planned.)</p>`}</div>`;
+  const lk = $("lk"); if (lk) lk.onclick = guard(async () => { await api("/api/vault/lock", { body: {} }); boot(); });
+  const cpw = $("cpw"); if (cpw) cpw.onclick = guard(async () => {
+    const o = prompt("Current passphrase"); if (!o) return; const n = prompt("New passphrase (12+ characters)"); if (!n) return;
+    if (prompt("Type the new passphrase again") !== n) { toast("They didn't match"); return; }
+    await api("/api/vault/passphrase", { body: { old: o, new: n } }); toast("Passphrase changed. Your recovery key still works.");
+  });
+  const au = $("au"); if (au) au.onclick = guard(async () => {
+    if (e.auto_unlock) { await api("/api/vault/autounlock", { body: { enable: false } }); toast("Auto-unlock is off"); }
+    else { const p = prompt("Enter your passphrase to turn on auto-unlock.\nThen a thief who steals this whole laptop could read your files."); if (!p) return; await api("/api/vault/autounlock", { body: { enable: true, secret: p } }); toast("Auto-unlock is on"); }
+    tabSecurity();
+  });
+}
+
+/* ---------------- Apps ---------------- */
+async function tabApps() {
+  const m = $("main"); const d = await api("/api/apps");
+  if (!d.docker.running) {
+    m.innerHTML = `<div class="card"><b>Apps need Docker</b><p class="mute">${d.docker.installed ? esc(d.docker.hint) : "Docker lets NestNAS install apps like Jellyfin with one click. Install it with:"}</p>${d.docker.installed ? "" : `<pre>${esc(d.docker.hint)}</pre>`}</div>`; return;
+  }
+  const host = location.hostname;
+  m.innerHTML = `<div class="grid">${d.apps.map(a => `<div class="card"><b>${esc(a.Name)}</b> ${a.State ? `<span class="pill ${a.State === "running" ? "ok" : "bad"}">${esc(a.State)}</span>` : ""}
+    <p class="mute small">${esc(a.Desc)}</p>
+    ${a.State ? `<a href="http://${esc(host)}:${esc(a.Ports[0])}" target="_blank" rel="noopener"><button>Open</button></a> <button class="danger" data-rm="${a.ID}">Remove</button>`
+              : `<button data-in="${a.ID}">Install</button>`}</div>`).join("")}</div>
+    <p class="mute small">Removing an app keeps its data in <code>apps/</code> inside your storage folder.</p>`;
+  m.querySelectorAll("[data-in]").forEach(b => b.onclick = guard(async () => { b.disabled = true; b.textContent = "Installing… (first time downloads the app)"; try { await api("/api/apps/install", { body: { id: b.dataset.in } }); } finally { tabApps(); } }));
+  m.querySelectorAll("[data-rm]").forEach(b => b.onclick = guard(async () => { if (confirm("Remove this app? Its data is kept.")) { await api("/api/apps/remove", { body: { id: b.dataset.rm } }); tabApps(); } }));
+}
+
+/* ---------------- Users ---------------- */
+async function tabUsers() {
+  const m = $("main"); const d = await api("/api/users");
+  m.innerHTML = `<div class="card"><b>People who can use this NAS</b>
+  <div class="tscroll"><table><thead><tr><th>User</th><th>Used</th><th>Allowance (GB)</th><th></th></tr></thead><tbody>${d.users.map(u => `<tr><td>${esc(u.name)} ${u.admin ? '<span class="pill">admin</span>' : ""}</td><td class="mute">${fmt(u.used)}</td>
+    <td><input type="number" min="1" step="1" value="${Math.round(u.quota / GB * 10) / 10}" data-q="${esc(u.name)}" style="width:90px"></td>
+    <td class="actions">${u.name === state.me.name ? "" : `<button class="danger" data-d="${esc(u.name)}">Delete</button>`}</td></tr>`).join("")}</tbody></table></div></div>
+  <div class="card"><b>Add a person</b><div class="row2"><div><label>Username</label><input id="nu"></div><div><label>Password (8+)</label><input id="np" type="password"></div>
+  <div><label>Allowance (GB)</label><input id="nq" type="number" value="10" min="1"></div><div><label>&nbsp;</label><label style="font-weight:400"><input type="checkbox" id="na" style="width:auto"> Make admin</label></div></div>
+  <div class="err" id="e"></div><button id="add">Add user</button></div>`;
+  m.querySelectorAll("[data-q]").forEach(i => i.onchange = guard(async () => { await api("/api/users/quota", { body: { name: i.dataset.q, quota_gb: +i.value } }); toast("Saved"); }));
+  m.querySelectorAll("[data-d]").forEach(b => b.onclick = guard(async () => {
+    if (!confirm(`Delete ${b.dataset.d}?`)) return;
+    const wipe = confirm("Also permanently delete their files?\nOK = delete files too, Cancel = keep files on disk.");
+    await api("/api/users/delete", { body: { name: b.dataset.d, delete_data: wipe } }); tabUsers();
+  }));
+  $("add").onclick = async () => { try { await api("/api/users/add", { body: { name: $("nu").value, password: $("np").value, quota_gb: +$("nq").value, admin: $("na").checked } }); tabUsers(); } catch (e) { $("e").textContent = e.message; } };
+}
+
+/* ---------------- Account ---------------- */
+function tabAccount() {
+  $("main").innerHTML = `<div class="card" style="max-width:420px"><b>Change password</b>
+  <label>Current password</label><input id="o" type="password"><label>New password (8+)</label><input id="n" type="password">
+  <div class="err" id="e"></div><button id="go">Change password</button></div>
+  <div class="card mute small">Public website: put files in a folder named <code>site</code> in your Files and visit <code>/sites/${esc(state.me.name)}/</code>.</div>`;
+  $("go").onclick = async () => { try { await api("/api/password", { body: { old: $("o").value, new: $("n").value } }); toast("Password changed"); $("o").value = $("n").value = ""; $("e").textContent = ""; } catch (e) { $("e").textContent = e.message; } };
+}
+
+boot();
+</script>
+</body>
+</html>
