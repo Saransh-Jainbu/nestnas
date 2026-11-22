@@ -19,3 +19,7 @@ vault-auto.key
 .claude/
 *.log
 *.swp
+
+# Vercel local link
+site/.vercel
+.vercel

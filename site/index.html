@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NestNAS: your own private cloud, on your own laptop</title>
+<meta name="description" content="NestNAS turns any laptop into a private cloud: encrypted storage, phone photo backup, a built-in network drive and a gallery. Open source, one program, zero dependencies.">
+<meta name="theme-color" content="#0e0d0c">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NestNAS: your own private cloud, on your own laptop">
+<meta property="og:description" content="Encrypted storage, phone photo backup, a network drive and a gallery. Open source. One program. Zero dependencies.">
+<meta property="og:image" content="https://nestnas.vercel.app/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/styles.css">
+<script>
+  // decide before first paint whether to show the boot splash (once per visit, never with ?nosplash or reduced motion)
+  (function () {
+    document.documentElement.classList.add("js");
+    if (/static/.test(location.search)) document.documentElement.classList.add("static");
+    var skip = /nosplash|static/.test(location.search) || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    try { skip = skip || sessionStorage.getItem("nest-booted"); } catch (e) {}
+    if (!skip) document.documentElement.classList.add("booting");
+  })();
+</script>
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<div class="orbs" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<!-- boot splash -->
+<div class="splash" id="splash" role="presentation">
+  <svg class="splash-nest" viewBox="0 0 64 64" aria-hidden="true">
+    <ellipse class="egg" cx="32" cy="26" rx="10" ry="13" fill="#ede6da"/>
+    <path class="arc a1" d="M8 34c4 16 14 22 24 22s20-6 24-22" fill="none" stroke="#f2a65a" stroke-width="4" stroke-linecap="round" pathLength="1"/>
+    <path class="arc a2" d="M12 38c8 8 16 10 20 10s12-2 20-10" fill="none" stroke="#e8987a" stroke-width="3" stroke-linecap="round" pathLength="1"/>
+    <path class="arc a3" d="M16 30c6 10 12 12 16 12s10-2 16-12" fill="none" stroke="#cfe0b4" stroke-width="2.5" stroke-linecap="round" pathLength="1"/>
+  </svg>
+  <div class="splash-line mono"><span>Building the nest</span><b id="splash-pct">0</b><span>%</span></div>
+  <div class="splash-bar"><i id="splash-fill"></i></div>
+  <button class="splash-skip mono" id="splash-skip" type="button">tap to skip</button>
+</div>
+
+<div class="cursor" id="cursor" aria-hidden="true"><i></i><b></b></div>
+
+<header class="nav" id="nav">
+  <a class="brand" href="#top" aria-label="NestNAS home">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="26" rx="10" ry="13" fill="#ede6da"/><path d="M8 34c4 16 14 22 24 22s20-6 24-22" fill="none" stroke="#f2a65a" stroke-width="4" stroke-linecap="round"/><path d="M12 38c8 8 16 10 20 10s12-2 20-10" fill="none" stroke="#e8987a" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg>
+    <span>NestNAS</span>
+  </a>
+  <nav class="links mono" aria-label="Sections">
+    <a href="#features"><i>01</i> Features</a>
+    <a href="#trust"><i>02</i> Trust</a>
+    <a href="#receipts"><i>03</i> Receipts</a>
+    <a href="#start"><i>04</i> Start</a>
+  </nav>
+  <div class="nav-r">
+    <button class="kbd mono" id="open-palette" type="button" aria-label="Open command menu"><span>⌘</span><span>K</span></button>
+    <a class="gh" href="https://github.com/Saransh-Jainbu/nestnas" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>Star on GitHub</span>
+    </a>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <p class="eyebrow mono" data-reveal><span class="pulse"></span> ( 00 ) Open source · MIT · pre-1.0</p>
+  <h1 class="display">
+    <span class="line"><span>Your files.</span></span>
+    <span class="line"><span>Your laptop.</span></span>
+    <span class="line"><span><em>Your nest.</em></span></span>
+  </h1>
+  <div class="hero-sub">
+    <p data-reveal>NestNAS turns any laptop into a <strong>private cloud</strong>: photo backup from your phone, an encrypted network drive, a gallery, share links. One small program. Nothing leaves your home unless you say so.</p>
+    <div class="cta" data-reveal>
+      <a class="btn primary" href="#start" data-magnetic><span>Hatch your own</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a class="btn ghost" href="#features" data-magnetic><span>See what it does</span></a>
+    </div>
+    <p class="micro mono" data-reveal>free forever · Go standard library only · Linux · Windows · macOS</p>
+  </div>
+
+  <!-- the signature scene: phone -> your Wi-Fi -> the nest -->
+  <div class="scene" data-reveal aria-hidden="true">
+    <div class="phone">
+      <div class="ph-notch"></div>
+      <div class="ph-top mono"><span>9:41</span><span>● ● ▮</span></div>
+      <div class="ph-h">Backup</div>
+      <div class="ph-count"><b id="bk-count">0</b><span> / 3,902</span></div>
+      <div class="ph-prog"><i id="bk-bar"></i></div>
+      <p class="ph-note">Only what's new.<br>Never overwritten.</p>
+      <div class="ph-tiles"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="wire">
+      <svg viewBox="0 0 240 200" width="240" height="200">
+        <defs><linearGradient id="wg" x1="0" x2="1"><stop offset="0" stop-color="#cfe0b4"/><stop offset="1" stop-color="#f2a65a"/></linearGradient></defs>
+        <path id="wpath" d="M2 150 C 90 150, 130 50, 238 50" fill="none" stroke="url(#wg)" stroke-width="1.6" stroke-dasharray="3 6" stroke-linecap="round"/>
+        <g class="parts">
+          <circle r="4.5" fill="#f2a65a"><animateMotion dur="3.2s" repeatCount="indefinite" begin="0s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="3.5" fill="#e8987a"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-0.7s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="4" fill="#cfe0b4"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-1.4s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="3" fill="#a8e0d6"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-2.1s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="4" fill="#f2a65a"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-2.7s"><mpath href="#wpath"/></animateMotion></circle>
+        </g>
+      </svg>
+      <span class="wire-chip mono">your Wi-Fi · TLS 1.3</span>
+    </div>
+
+    <div class="laptop">
+      <div class="lp-bar">
+        <i></i><i></i><i></i>
+        <span class="url mono"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5.2" width="8" height="5.6" rx="1.2" fill="currentColor"/><path d="M4 5.2V4a2 2 0 014 0v1.2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg> https://nest.local:8443</span>
+      </div>
+      <div class="lp-body">
+        <aside class="lp-side mono"><b>🪺</b><span class="on">Files</span><span>Backup</span><span>Trash</span><span>More</span></aside>
+        <div class="lp-main">
+          <div class="lp-cards">
+            <div class="lp-card ring-card">
+              <div class="ring" id="ring"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="32" class="trk"/><circle cx="40" cy="40" r="32" class="val" id="ring-val" pathLength="100"/></svg><b id="ring-n">0%</b></div>
+              <div><div class="k mono">Your storage</div><div class="v">76 <small>of 200 GB</small></div></div>
+            </div>
+            <div class="lp-card enc-card">
+              <div class="k mono">Encryption</div>
+              <div class="v"><span class="chip"><i></i> AES-256 · unlocked</span></div>
+              <div class="k mono sm">3,902 files · TLS 1.3</div>
+            </div>
+          </div>
+          <ul class="lp-files">
+            <li><span class="th t1"></span><span class="nm">Goa trip 2025</span><span class="sz mono">412 photos</span></li>
+            <li><span class="th t2"></span><span class="nm">Phone Backup / 2025 / 11</span><span class="sz mono">128 new</span></li>
+            <li><span class="th t3"></span><span class="nm">Thesis-final-v7.pdf</span><span class="sz mono">4.2 MB</span></li>
+            <li><span class="th t4"></span><span class="nm">family-dinner.mp4</span><span class="sz mono">152 MB</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ticker -->
+<div class="ticker mono" aria-hidden="true">
+  <div class="track">
+    <span>AES-256-GCM</span><i>✦</i><span>TLS 1.3 only</span><i>✦</i><span>scrypt-wrapped keys</span><i>✦</i><span>zero dependencies</span><i>✦</i><span>WebDAV drive</span><i>✦</i><span>external drives, hot-swap safe</span><i>✦</i><span>photo gallery</span><i>✦</i><span>one binary</span><i>✦</i><span>tamper-evident files</span><i>✦</i>
+    <span>AES-256-GCM</span><i>✦</i><span>TLS 1.3 only</span><i>✦</i><span>scrypt-wrapped keys</span><i>✦</i><span>zero dependencies</span><i>✦</i><span>WebDAV drive</span><i>✦</i><span>external drives, hot-swap safe</span><i>✦</i><span>photo gallery</span><i>✦</i><span>one binary</span><i>✦</i><span>tamper-evident files</span><i>✦</i>
+  </div>
+</div>
+
+<!-- ============ FEATURES ============ -->
+<section class="sec" id="features">
+  <header class="sec-h">
+    <p class="eyebrow mono" data-reveal>( 01 ) What it does</p>
+    <h2 class="display md" data-reveal>Everything you wish your <em>cloud plan</em> did.</h2>
+    <p class="lede" data-reveal>A full-sized storage plan costs money every month, forever. A laptop and a spare drive cost nothing more. NestNAS is the missing part: the software that makes them behave like the cloud.</p>
+  </header>
+
+  <div class="bento">
+    <article class="cell c7" data-reveal>
+      <div class="tag mono">Phone backup</div>
+      <h3>One tap to empty your phone's worry.</h3>
+      <p>Pick photos and videos (or a whole folder) and NestNAS copies only what it doesn't have yet. Same file twice? Skipped. Same name, different photo? Both kept. It never overwrites and never deletes.</p>
+      <div class="viz backup-viz" id="backup-viz">
+        <div class="bv-row mono"><span>Phone Backup / 2025 / 11</span><span id="bv-num">0 new · 0 already there</span></div>
+        <div class="bv-rail"><i id="bv-fill"></i></div>
+        <div class="bv-tiles" id="bv-tiles"></div>
+      </div>
+    </article>
+
+    <article class="cell c5 tall" data-reveal>
+      <div class="tag mono">Encrypted at rest</div>
+      <h3>Scrambled before it touches the disk.</h3>
+      <p>Every file gets its own key. Lose the laptop or the drive and what's on it is noise.</p>
+      <div class="viz cipher-viz" id="cipher">
+        <div class="cv-file mono"><span class="dot"></span>holiday-goa.jpg</div>
+        <pre class="cv-body mono" id="cipher-text" aria-live="off">FF D8 FF E0 00 10 4A 46 49 46 00 01 01 00 00 01
+00 01 00 00 FF DB 00 43 00 08 06 06 07 06 05 08</pre>
+        <div class="cv-state mono"><button type="button" id="cipher-btn" aria-pressed="false"><span class="sw"></span><span id="cipher-label">readable on your laptop</span></button></div>
+      </div>
+      <p class="fine mono">AES-256-GCM · 64 KiB authenticated chunks · scrypt</p>
+    </article>
+
+    <article class="cell c5" data-reveal>
+      <div class="tag mono">Gallery &amp; viewer</div>
+      <h3>Your photos, in your own gallery.</h3>
+      <p>Thumbnails, a full-screen viewer, swipe, video seeking. Decrypted on the fly, never cached.</p>
+      <div class="viz gallery-viz" aria-hidden="true">
+        <i class="g1"></i><i class="g2"></i><i class="g3"></i><i class="g4"></i><i class="g5"></i><i class="g6"></i>
+      </div>
+    </article>
+
+    <article class="cell c7" data-reveal>
+      <div class="tag mono">External drives</div>
+      <h3>Pull the plug. Plug it back. It just continues.</h3>
+      <p>Use a USB or external drive as storage. Unplug it any time: NestNAS pauses, warns you, and never quietly fills your laptop's own disk. Plug it in again, even somewhere else, and it carries on by itself.</p>
+      <div class="viz drive-viz" aria-hidden="true">
+        <div class="dv-top">
+          <div class="dv-drive"><span class="lid"></span><span class="led"></span></div>
+          <div class="dv-cable"></div>
+          <div class="dv-pc mono">your laptop</div>
+        </div>
+        <div class="dv-steps mono">
+          <span class="st s1"><i></i>connected, serving files</span>
+          <span class="st s2"><i></i>removed: paused safely</span>
+          <span class="st s3"><i></i>found again: resuming</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="cell c4" data-reveal>
+      <div class="tag mono">Network drive</div>
+      <h3>Mount it like a USB stick.</h3>
+      <p>Built-in WebDAV for Mac, Windows and Linux. Same login, same privacy.</p>
+      <div class="viz url-viz mono"><span>https://</span><b>nest.local:8443</b><span>/dav/</span></div>
+    </article>
+
+    <article class="cell c4" data-reveal>
+      <div class="tag mono">Share &amp; undo</div>
+      <h3>Links that expire. Trash that forgives.</h3>
+      <p>Public links with a timer. Deleted something? It waits in the trash for 30 days.</p>
+      <div class="viz mini-viz">
+        <div class="pill mono"><span>/s/9f3c…e1</span><em>expires in 24 h</em></div>
+        <div class="pill undo mono"><span>wedding-draft.docx</span><em>↩ restore</em></div>
+      </div>
+    </article>
+
+    <article class="cell c4" data-reveal>
+      <div class="tag mono">Everyone gets a room</div>
+      <h3>Family, roommates, your future self.</h3>
+      <p>Private folders and their own space limit for each person. Nobody sees anyone else's.</p>
+      <div class="viz users-viz" aria-hidden="true">
+        <div class="u"><b style="--c:#f2a65a">A</b><div class="q"><i style="width:72%"></i></div></div>
+        <div class="u"><b style="--c:#a8e0d6">M</b><div class="q"><i style="width:34%"></i></div></div>
+        <div class="u"><b style="--c:#e8987a">R</b><div class="q"><i style="width:55%"></i></div></div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============ TRUST ============ -->
+<section class="sec" id="trust">
+  <header class="sec-h">
+    <p class="eyebrow mono" data-reveal>( 02 ) Why you can trust it</p>
+    <h2 class="display md" data-reveal>Built like it holds your life. <em>Because it does.</em></h2>
+  </header>
+
+  <div class="trust-grid">
+    <div class="trust-l">
+      <ol class="principles">
+        <li data-reveal><span class="n mono">i.</span><div><h3>Nothing to trust but one program.</h3><p>Written in Go using only its standard library. No hidden packages, no supply chain, nothing phoning home. You can read all of it in an afternoon.</p></div></li>
+        <li data-reveal><span class="n mono">ii.</span><div><h3>Encrypted twice.</h3><p>On the wire: TLS 1.3 only, with a private certificate authority that is <em>locked to your home network's addresses</em>. On the disk: AES-256-GCM, with keys wrapped by your passphrase using memory-hard scrypt, plus a one-time recovery key.</p></div></li>
+        <li data-reveal><span class="n mono">iii.</span><div><h3>It tells you where it's weak.</h3><p>Names and dates aren't hidden, only contents. The file format is new and hasn't had an outside audit yet. We'd rather say so than have you find out.</p></div></li>
+      </ol>
+    </div>
+
+    <div class="anatomy" data-reveal aria-label="Diagram of an encrypted file">
+      <div class="an-h mono"><span>anatomy of an encrypted file</span><span>NNE1</span></div>
+      <div class="an-bar" id="anatomy">
+        <div class="seg hdr"><b>header</b><small>40 B · version + file salt</small></div>
+        <div class="seg ch"><b>chunk 1</b><small>64 KiB + 16 B tag</small></div>
+        <div class="seg ch"><b>chunk 2</b><small>64 KiB + 16 B tag</small></div>
+        <div class="seg dots">…</div>
+        <div class="seg last"><b>last chunk</b><small>flagged final</small></div>
+      </div>
+      <ul class="an-list mono">
+        <li><i></i> unique key per file (HKDF from the master key)</li>
+        <li><i></i> nonce = chunk counter, never reused</li>
+        <li><i></i> header + "last" flag are authenticated</li>
+        <li><i></i> flip, drop, swap or truncate a chunk: detected</li>
+      </ul>
+      <a class="an-link mono" href="https://github.com/Saransh-Jainbu/nestnas/blob/main/SECURITY.md" target="_blank" rel="noopener">read the threat model →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RECEIPTS ============ -->
+<section class="sec" id="receipts">
+  <header class="sec-h">
+    <p class="eyebrow mono" data-reveal>( 03 ) Receipts</p>
+    <h2 class="display md" data-reveal>Numbers, not <em>adjectives.</em></h2>
+  </header>
+  <div class="stats">
+    <div class="stat" data-reveal><b data-count="5125" data-format="comma">0</b><span class="mono">lines of Go in the whole server</span></div>
+    <div class="stat" data-reveal><b data-count="0">0</b><span class="mono">third-party dependencies in the core</span></div>
+    <div class="stat" data-reveal><b data-count="209">0</b><span class="mono">end-to-end checks (run with encryption off, then on)</span></div>
+    <div class="stat" data-reveal><b data-count="5.7" data-decimals="1" data-suffix=" MB">0</b><span class="mono">the entire program, one file</span></div>
+  </div>
+  <p class="receipt-note mono" data-reveal>Cryptography checked against the official RFC test vectors and cross-checked with OpenSSL. CI runs every push on a clean machine.</p>
+</section>
+
+<!-- ============ START ============ -->
+<section class="sec" id="start">
+  <header class="sec-h">
+    <p class="eyebrow mono" data-reveal>( 04 ) Get started</p>
+    <h2 class="display md" data-reveal>Three steps. <em>Ten minutes.</em></h2>
+  </header>
+
+  <div class="steps">
+    <div class="step" data-reveal>
+      <span class="sn mono">01</span>
+      <h3>Build it</h3>
+      <p>You need Go 1.18 or newer. Packaged installers arrive with the first release.</p>
+      <div class="term" id="term">
+        <div class="term-h mono"><i></i><i></i><i></i><span>terminal</span><button type="button" id="copy" class="copy mono">copy</button></div>
+<pre class="term-b mono"><span class="c"># get it</span>
+<span class="p">$</span> git clone https://github.com/Saransh-Jainbu/nestnas.git
+<span class="p">$</span> cd nestnas &amp;&amp; make build
+<span class="c"># run it now, and on every start</span>
+<span class="p">$</span> ./nestnas service install</pre>
+      </div>
+    </div>
+    <div class="step" data-reveal>
+      <span class="sn mono">02</span>
+      <h3>Open it &amp; choose</h3>
+      <p>Visit <code class="mono">localhost:8080</code>. Pick how many GB to lend, where files live (an external drive works), and whether to encrypt. Save the recovery key somewhere safe.</p>
+    </div>
+    <div class="step" data-reveal>
+      <span class="sn mono">03</span>
+      <h3>Add your phone</h3>
+      <p>On the same Wi-Fi, open the setup page it shows you, install the one certificate, then <em>Add to Home Screen</em>. Hit <b>Backup</b>. Done.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINE PRINT ============ -->
+<section class="sec fine-sec" id="fine">
+  <header class="sec-h">
+    <p class="eyebrow mono" data-reveal>( 05 ) The fine print</p>
+    <h2 class="display sm" data-reveal>Honest about the edges.</h2>
+  </header>
+  <ul class="fine-list" data-reveal>
+    <li><b>Early software.</b> It works end to end and is well tested, but it's pre-1.0. Don't make it your only copy of anything irreplaceable.</li>
+    <li><b>Not audited.</b> The encryption uses standard building blocks, but the file format is new and hasn't had an independent review.</li>
+    <li><b>Developed on Linux.</b> Windows and macOS builds compile and share the logic, but haven't been run for real yet.</li>
+    <li><b>iPhone limits.</b> Safari can't back up in the background, so keep the page open while it uploads. Apple's Files app can't mount a network drive like this; use the web app.</li>
+    <li><b>Forgot your passphrase?</b> And lost the recovery key? Then your files are gone. That's the point of encryption.</li>
+  </ul>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="foot-cta" data-reveal>
+    <h2 class="display md">Go on. <em>Hatch one.</em></h2>
+    <a class="btn primary" href="https://github.com/Saransh-Jainbu/nestnas" target="_blank" rel="noopener" data-magnetic><span>Get it on GitHub</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+  </div>
+  <div class="wordmark" aria-hidden="true">NestNAS</div>
+  <div class="foot-row mono">
+    <span>MIT licensed · open source</span>
+    <span>Made by <a href="https://www.saranshjain.dev/" target="_blank" rel="noopener">Saransh Jain</a></span>
+    <span><a href="https://github.com/Saransh-Jainbu/nestnas#readme" target="_blank" rel="noopener">README</a> · <a href="https://github.com/Saransh-Jainbu/nestnas/blob/main/SECURITY.md" target="_blank" rel="noopener">Security</a> · <a href="https://github.com/Saransh-Jainbu/nestnas/blob/main/LICENSE" target="_blank" rel="noopener">License</a></span>
+  </div>
+</footer>
+
+<!-- command palette -->
+<div class="palette" id="palette" hidden>
+  <div class="pal-box" role="dialog" aria-modal="true" aria-label="Command menu">
+    <input id="pal-input" class="mono" type="text" placeholder="Jump to…" autocomplete="off" spellcheck="false">
+    <ul id="pal-list" role="listbox"></ul>
+    <div class="pal-foot mono"><span>↑↓ move</span><span>↵ go</span><span>esc close</span></div>
+  </div>
+</div>
+</body>
+</html>
