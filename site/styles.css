@@ -408,3 +408,19 @@ code{font-size:.88em;color:var(--amber);background:rgba(109,200,255,.1);padding:
 .track i{color:var(--orange)}
 .tag{color:var(--orange)}
 .btn:hover,.nav .btn:hover{box-shadow:0 8px 30px -8px rgba(255,154,60,.5)}
+
+/* wide screens: text on the left, the product on the right, so both are visible on arrival */
+@media (min-width:1101px){
+  .hero{max-width:1480px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.95fr);column-gap:56px;align-content:center;align-items:center;min-height:100vh;padding-top:110px;padding-bottom:50px}
+  .hero>.eyebrow{grid-column:1;grid-row:1;align-self:end}
+  .hero>h1{grid-column:1;grid-row:2;font-size:clamp(3.2rem,5.6vw,6.2rem)}
+  .hero>.hero-sub{grid-column:1;grid-row:3;grid-template-columns:1fr;gap:26px;margin-top:26px;align-items:start}
+  .hero>.scene{grid-column:2;grid-row:1/4;display:block;margin-top:0;height:min(600px,78vh);min-height:470px}
+  .scene .wire{display:none}
+  .scene .laptop{position:absolute;top:24px;left:84px;right:0}
+  .scene .phone{position:absolute;left:0;bottom:0;z-index:2}
+}
+@media (min-width:1101px) and (max-width:1560px){
+  .lp-cards{grid-template-columns:minmax(0,1fr)}
+  .enc-card{display:none}
+}
