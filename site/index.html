@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NestNAS: private cloud storage on your own hardware</title>
 <meta name="description" content="NestNAS turns a laptop into private cloud storage with encrypted files, phone photo backup, a network drive and a photo gallery. Open source, one program, no dependencies.">
-<meta name="theme-color" content="#0e0d0c">
+<meta name="theme-color" content="#05080c">
 <link rel="canonical" href="https://nestnas.vercel.app/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="NestNAS: private cloud storage on your own hardware">
@@ -13,6 +13,7 @@
 <meta property="og:image" content="https://nestnas.vercel.app/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
@@ -29,17 +30,18 @@
 <script src="/app.js" defer></script>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <linearGradient id="nn-o" gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="53"><stop offset="0" stop-color="#5ec1ff"/><stop offset="1" stop-color="#1f6fff"/></linearGradient>
+  <linearGradient id="nn-m" gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="46"><stop offset="0" stop-color="#8fdcff"/><stop offset="1" stop-color="#3b95ff"/></linearGradient>
+  <linearGradient id="nn-i" gradientUnits="userSpaceOnUse" x1="0" y1="30" x2="0" y2="39"><stop offset="0" stop-color="#d9f4ff"/><stop offset="1" stop-color="#6dc8ff"/></linearGradient>
+  <linearGradient id="nn-g" gradientUnits="userSpaceOnUse" x1="0" y1="14" x2="0" y2="30"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9fdcff"/></linearGradient>
+</defs></svg>
 <div class="grain" aria-hidden="true"></div>
 <div class="orbs" aria-hidden="true"><i></i><i></i><i></i></div>
 
 <!-- boot splash -->
 <div class="splash" id="splash" role="presentation">
-  <svg class="splash-nest" viewBox="0 0 64 64" aria-hidden="true">
-    <ellipse class="egg" cx="32" cy="26" rx="10" ry="13" fill="#ede6da"/>
-    <path class="arc a1" d="M8 34c4 16 14 22 24 22s20-6 24-22" fill="none" stroke="#f2a65a" stroke-width="4" stroke-linecap="round" pathLength="1"/>
-    <path class="arc a2" d="M12 38c8 8 16 10 20 10s12-2 20-10" fill="none" stroke="#e8987a" stroke-width="3" stroke-linecap="round" pathLength="1"/>
-    <path class="arc a3" d="M16 30c6 10 12 12 16 12s10-2 16-12" fill="none" stroke="#cfe0b4" stroke-width="2.5" stroke-linecap="round" pathLength="1"/>
-  </svg>
+  <svg class=" splash-nest"viewBox="4 8 56 50" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path class="arc a1" d="M10 30a22 22 0 0 0 44 0" stroke="url(#nn-o)" stroke-width="4.4" pathLength="1"/><path class="arc a2" d="M17 30a15 15 0 0 0 30 0" stroke="url(#nn-m)" stroke-width="4.4" pathLength="1"/><path class="arc a3" d="M24 30a8 8 0 0 0 16 0" stroke="url(#nn-i)" stroke-width="4.4" pathLength="1"/></g><path class="egg" d="M32 14.5l7.5 7.5-7.5 7.5-7.5-7.5z" fill="url(#nn-g)" stroke="url(#nn-g)" stroke-width="2.2" stroke-linejoin="round"/></svg>
   <div class="splash-line mono"><span>Loading</span><b id="splash-pct">0</b><span>%</span></div>
   <div class="splash-bar"><i id="splash-fill"></i></div>
   <button class="splash-skip mono" id="splash-skip" type="button">skip</button>
@@ -49,7 +51,7 @@
 
 <header class="nav" id="nav">
   <a class="brand" href="#top" aria-label="NestNAS home">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="26" rx="10" ry="13" fill="#ede6da"/><path d="M8 34c4 16 14 22 24 22s20-6 24-22" fill="none" stroke="#f2a65a" stroke-width="4" stroke-linecap="round"/><path d="M12 38c8 8 16 10 20 10s12-2 20-10" fill="none" stroke="#e8987a" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg>
+    <svg viewBox="4 8 56 50" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path class="arc a1" d="M10 30a22 22 0 0 0 44 0" stroke="url(#nn-o)" stroke-width="4.4"/><path class="arc a2" d="M17 30a15 15 0 0 0 30 0" stroke="url(#nn-m)" stroke-width="4.4"/><path class="arc a3" d="M24 30a8 8 0 0 0 16 0" stroke="url(#nn-i)" stroke-width="4.4"/></g><path class="egg" d="M32 14.5l7.5 7.5-7.5 7.5-7.5-7.5z" fill="url(#nn-g)" stroke="url(#nn-g)" stroke-width="2.2" stroke-linejoin="round"/></svg>
     <span>NestNAS</span>
   </a>
   <nav class="links mono" aria-label="Sections">
@@ -100,14 +102,14 @@
 
     <div class="wire">
       <svg viewBox="0 0 240 200" width="240" height="200">
-        <defs><linearGradient id="wg" x1="0" x2="1"><stop offset="0" stop-color="#cfe0b4"/><stop offset="1" stop-color="#f2a65a"/></linearGradient></defs>
+        <defs><linearGradient id="wg" x1="0" x2="1"><stop offset="0" stop-color="#6fe3c1"/><stop offset="1" stop-color="#6dc8ff"/></linearGradient></defs>
         <path id="wpath" d="M2 150 C 90 150, 130 50, 238 50" fill="none" stroke="url(#wg)" stroke-width="1.6" stroke-dasharray="3 6" stroke-linecap="round"/>
         <g class="parts">
-          <circle r="4.5" fill="#f2a65a"><animateMotion dur="3.2s" repeatCount="indefinite" begin="0s"><mpath href="#wpath"/></animateMotion></circle>
-          <circle r="3.5" fill="#e8987a"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-0.7s"><mpath href="#wpath"/></animateMotion></circle>
-          <circle r="4" fill="#cfe0b4"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-1.4s"><mpath href="#wpath"/></animateMotion></circle>
-          <circle r="3" fill="#a8e0d6"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-2.1s"><mpath href="#wpath"/></animateMotion></circle>
-          <circle r="4" fill="#f2a65a"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-2.7s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="4.5" fill="#6dc8ff"><animateMotion dur="3.2s" repeatCount="indefinite" begin="0s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="3.5" fill="#8fb4ff"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-0.7s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="4" fill="#6fe3c1"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-1.4s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="3" fill="#7fe6d9"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-2.1s"><mpath href="#wpath"/></animateMotion></circle>
+          <circle r="4" fill="#6dc8ff"><animateMotion dur="3.2s" repeatCount="indefinite" begin="-2.7s"><mpath href="#wpath"/></animateMotion></circle>
         </g>
       </svg>
       <span class="wire-chip mono">your Wi-Fi · TLS 1.3</span>
@@ -119,7 +121,7 @@
         <span class="url mono"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5.2" width="8" height="5.6" rx="1.2" fill="currentColor"/><path d="M4 5.2V4a2 2 0 014 0v1.2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg> https://nest.local:8443</span>
       </div>
       <div class="lp-body">
-        <aside class="lp-side mono"><b><svg viewBox="0 0 64 64" aria-hidden="true" style="width:22px;height:22px"><ellipse cx="32" cy="26" rx="10" ry="13" fill="#ede6da"/><path d="M8 34c4 16 14 22 24 22s20-6 24-22" fill="none" stroke="#f2a65a" stroke-width="4" stroke-linecap="round"/></svg></b><span class="on">Files</span><span>Backup</span><span>Trash</span><span>More</span></aside>
+        <aside class="lp-side mono"><b><svg viewBox="4 8 56 50" aria-hidden="true" style="width:24px;height:22px"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path class="arc a1" d="M10 30a22 22 0 0 0 44 0" stroke="url(#nn-o)" stroke-width="4.4"/><path class="arc a2" d="M17 30a15 15 0 0 0 30 0" stroke="url(#nn-m)" stroke-width="4.4"/><path class="arc a3" d="M24 30a8 8 0 0 0 16 0" stroke="url(#nn-i)" stroke-width="4.4"/></g><path class="egg" d="M32 14.5l7.5 7.5-7.5 7.5-7.5-7.5z" fill="url(#nn-g)" stroke="url(#nn-g)" stroke-width="2.2" stroke-linejoin="round"/></svg></b><span class="on">Files</span><span>Backup</span><span>Trash</span><span>More</span></aside>
         <div class="lp-main">
           <div class="lp-cards">
             <div class="lp-card ring-card">
@@ -234,9 +236,9 @@
       <h3>Separate folders and quotas.</h3>
       <p>Each user has a private folder and their own storage limit.</p>
       <div class="viz users-viz" aria-hidden="true">
-        <div class="u"><b style="--c:#f2a65a">A</b><div class="q"><i style="width:72%"></i></div></div>
-        <div class="u"><b style="--c:#a8e0d6">M</b><div class="q"><i style="width:34%"></i></div></div>
-        <div class="u"><b style="--c:#e8987a">R</b><div class="q"><i style="width:55%"></i></div></div>
+        <div class="u"><b style="--c:#6dc8ff">A</b><div class="q"><i style="width:72%"></i></div></div>
+        <div class="u"><b style="--c:#7fe6d9">M</b><div class="q"><i style="width:34%"></i></div></div>
+        <div class="u"><b style="--c:#8fb4ff">R</b><div class="q"><i style="width:55%"></i></div></div>
       </div>
     </article>
   </div>

@@ -130,11 +130,11 @@
   function setupBackupViz() {
     var host = $("#backup-viz"); if (!host) return;
     var tiles = $("#bv-tiles"), fill = $("#bv-fill"), num = $("#bv-num"), n = 60, cells = [];
-    var hues = ["#f2a65a", "#a8e0d6", "#e8987a", "#cfe0b4", "#9aa8e8", "#f7c08a"];
+    var hues = ["#6dc8ff", "#7fe6d9", "#8fb4ff", "#6fe3c1", "#9aa8e8", "#bfe6ff"];
     for (var i = 0; i < n; i++) { var c = document.createElement("i"); tiles.appendChild(c); cells.push(c); }
     function paint(k) {
       var fresh = Math.round(k * 0.31), had = k - fresh;
-      cells.forEach(function (c, i) { if (i < k) { c.style.background = i % 3 === 0 ? hues[i % hues.length] : "#3a342d"; c.classList.add("done"); } else { c.style.background = ""; c.classList.remove("done"); } });
+      cells.forEach(function (c, i) { if (i < k) { c.style.background = i % 3 === 0 ? hues[i % hues.length] : "#243242"; c.classList.add("done"); } else { c.style.background = ""; c.classList.remove("done"); } });
       fill.style.width = (k / n * 100) + "%";
       num.textContent = (fresh * 4) + " new · " + (had * 9) + " already there";
     }
