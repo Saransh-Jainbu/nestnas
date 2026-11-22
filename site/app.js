@@ -164,7 +164,7 @@
     function set(l) {
       if (busy) return; locked = l;
       host.classList.toggle("locked", l); btn.setAttribute("aria-pressed", l);
-      label.textContent = l ? "what a thief sees" : "readable on your laptop";
+      label.textContent = l ? "ciphertext (as stored on disk)" : "plaintext (as used by you)";
       scramble(l ? cipher : plain);
     }
     btn.addEventListener("click", function () { user = true; set(!locked); });
@@ -176,7 +176,7 @@
   function setupCopy() {
     var b = $("#copy"); if (!b) return;
     var cmd = "git clone https://github.com/Saransh-Jainbu/nestnas.git\ncd nestnas && make build\n./nestnas service install";
-    b.addEventListener("click", function () { copyText(cmd, function () { b.textContent = "copied ✓"; setTimeout(function () { b.textContent = "copy"; }, 1800); }); });
+    b.addEventListener("click", function () { copyText(cmd, function () { b.textContent = "copied"; setTimeout(function () { b.textContent = "copy"; }, 1800); }); });
   }
   function copyText(t, ok) {
     if (navigator.clipboard) navigator.clipboard.writeText(t).then(ok, function () {});
@@ -187,13 +187,13 @@
   function setupPalette() {
     var pal = $("#palette"), input = $("#pal-input"), list = $("#pal-list"), sel = 0, shown = [];
     var items = [
-      { t: "Features", s: "what it does", go: "#features" }, { t: "Trust", s: "how it's protected", go: "#trust" },
-      { t: "Receipts", s: "the numbers", go: "#receipts" }, { t: "Get started", s: "build & run", go: "#start" },
-      { t: "The fine print", s: "honest limits", go: "#fine" },
+      { t: "Features", s: "what it does", go: "#features" }, { t: "Security", s: "how it is protected", go: "#trust" },
+      { t: "Metrics", s: "project numbers", go: "#receipts" }, { t: "Get started", s: "build & run", go: "#start" },
+      { t: "Limitations", s: "known limitations", go: "#fine" },
       { t: "Open the GitHub repo", s: "↗", url: "https://github.com/Saransh-Jainbu/nestnas" },
       { t: "Read the security model", s: "↗", url: "https://github.com/Saransh-Jainbu/nestnas/blob/main/SECURITY.md" },
       { t: "Copy the install commands", s: "clipboard", copy: true },
-      { t: "Meet the maker", s: "↗ saranshjain.dev", url: "https://www.saranshjain.dev/" }
+      { t: "About the author", s: "↗ saranshjain.dev", url: "https://www.saranshjain.dev/" }
     ];
     function render() {
       var q = input.value.trim().toLowerCase();
