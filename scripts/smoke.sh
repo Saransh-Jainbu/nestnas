@@ -4,9 +4,9 @@ set -u
 # SMOKE_ENCRYPT=1 runs the whole suite with at-rest encryption turned on (plus extra encryption checks).
 BIN=${1:-./nestnas}; PORT=${PORT:-18080}; TP=$((PORT+1)); SP=$((PORT+2)); ENC=${SMOKE_ENCRYPT:-0}
 T=$(mktemp -d); J="$T/jar"; B="http://127.0.0.1:$PORT"; PASS_PHRASE="correct horse battery staple"
-start(){ NESTNAS_HOME="$T/home" "$BIN" serve --port $PORT --tls-port $TP --setup-port $SP --listen 127.0.0.1 >>"$T/log" 2>&1 & PID=$!; sleep 1; }
+start(){ NESTNAS_HOME="$T/home" "$BIN" serve --port $PORT --tls-port $TP --setup-port $SP --listen 127.0.0.1 >>"$T/log" 2>&1 & PID=$!; for i in $(seq 1 50); do curl -s -o /dev/null "$B/api/status" && break; sleep 0.2; done; }
 start
-trap 'kill $PID 2>/dev/null; rm -rf "$T"' EXIT
+trap 'kill $PID 2>/dev/null; wait $PID 2>/dev/null; rm -rf "$T"' EXIT
 echo "=== mode: encryption $([ "$ENC" = 1 ] && echo ON || echo off) ==="
 fail=0; ok(){ echo "PASS $1"; }; bad(){ echo "FAIL $1 ($2)"; fail=1; }
 chk(){ [ "$2" = "$3" ] && ok "$1" || bad "$1" "got $2 want $3"; }
