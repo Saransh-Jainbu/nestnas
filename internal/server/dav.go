@@ -251,7 +251,7 @@ func (s *Server) davPropfind(w http.ResponseWriter, r *http.Request, u config.Us
 		des, _ := os.ReadDir(abs)
 		for _, d := range des {
 			n := d.Name()
-			if abs == root && n == trashName || strings.HasPrefix(n, ".") && strings.HasSuffix(n, ".part") {
+			if abs == root && internalName(n) || strings.HasPrefix(n, ".") && strings.HasSuffix(n, ".part") {
 				continue
 			}
 			info, err := d.Info()
@@ -329,8 +329,10 @@ func (s *Server) davPut(w http.ResponseWriter, r *http.Request, u config.User, r
 		return
 	}
 	_ = os.Chmod(tmp.Name(), 0o644)
+	undo := s.saveVersion(root, abs)
 	if err := os.Rename(tmp.Name(), abs); err != nil {
 		os.Remove(tmp.Name())
+		undo()
 		http.Error(w, "can't save file", 500)
 		return
 	}

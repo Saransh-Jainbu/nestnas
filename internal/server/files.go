@@ -54,7 +54,7 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request, u config.User) {
 		if strings.HasSuffix(d.Name(), ".part") && strings.HasPrefix(d.Name(), ".") {
 			continue // in-flight uploads
 		}
-		if d.Name() == trashName && abs == root {
+		if internalName(d.Name()) && abs == root {
 			continue // hidden; shown in the Trash tab
 		}
 		info, err := d.Info()
@@ -77,16 +77,24 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request, u config.User) {
 }
 
 func (s *Server) serveAttachment(w http.ResponseWriter, r *http.Request, abs string) {
+	s.serveAttachmentAs(w, r, abs, "")
+}
+
+// serveAttachmentAs is serveAttachment with an explicit download name (used for old versions).
+func (s *Server) serveAttachmentAs(w http.ResponseWriter, r *http.Request, abs, asName string) {
 	rs, info, done, err := s.openContent(abs)
 	if err != nil {
 		contentErr(w, err)
 		return
 	}
 	defer done()
-	name := strings.NewReplacer(`"`, "", "\r", "", "\n", "", "\\", "").Replace(info.Name())
+	if asName == "" {
+		asName = info.Name()
+	}
+	name := strings.NewReplacer(`"`, "", "\r", "", "\n", "", "\\", "").Replace(asName)
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
 	w.Header().Set("Content-Type", "application/octet-stream")
-	http.ServeContent(w, r, info.Name(), info.ModTime(), rs) // supports Range / resume
+	http.ServeContent(w, r, asName, info.ModTime(), rs) // supports Range / resume
 }
 
 func (s *Server) download(w http.ResponseWriter, r *http.Request, u config.User) {
@@ -168,8 +176,10 @@ func (s *Server) upload(w http.ResponseWriter, r *http.Request, u config.User) {
 		}
 		return
 	}
+	undo := s.saveVersion(root, dest)
 	if err := os.Rename(tmp.Name(), dest); err != nil {
 		os.Remove(tmp.Name())
+		undo()
 		jerr(w, 500, "can't save file")
 		return
 	}

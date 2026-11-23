@@ -73,6 +73,18 @@ internal/web            index.html (the whole UI, one file) + icon, embedded wit
 - `app.Start` serves plain HTTP **only on 127.0.0.1** (behind `localOnly`, which rejects non-local Host headers), HTTPS (TLS 1.3 only) on the LAN port, and a **device-setup** listener (plain HTTP, default 8081) that serves **only** public CA material (`/`, `/NestNAS.mobileconfig`, `/ca.crt`, `/ca.cer`). Never add another route to `SetupHandler`; it must never reach the API, files, WebDAV or the CA private key (guarded by tests). It exists because iOS won't install a profile fetched over an untrusted HTTPS connection.
 - The local CA is name-constrained to private ranges; keep `ca.key` mode 0600 and never serve it.
 
+## Versions and snapshots (`versions.go`, `snapshots.go`)
+
+- NestNAS keeps three hidden folders in each user's folder: `.trash`, `.versions`, `.snapshots`. `internalName()`/`inTrash()` block them from every path API (case-insensitively, because exFAT/NTFS are case-insensitive); list, zip, DAV listing, snapshot walks and the encryption converter all treat them as internal. When you add code that walks a user folder, skip them.
+- **Files are never modified in place** (write a temp file, then rename). Versions and snapshots rely on that: a stored copy of a file instance stays an exact image. Call `s.saveVersion(root, abs)` right before replacing a file and its `undo()` if the replacement fails.
+- Snapshot manifests are JSON in `.snapshots/m/`, stored copies in `.snapshots/objects/` (hard link if the drive allows it, else a copy; the user's drive is exFAT, so don't assume links). Unchanged files (same size and mtime) reuse the previous snapshot's copy. Restores never delete; a file that exists now is saved as a version first. Both count toward the quota.
+
+## Health monitor (`monitor.go`)
+
+- `Server.Handler` wraps every request with byte counters (`countReader` for uploads, `countWriter` for downloads; `/api/monitor` itself is excluded). `countWriter` must keep `ReadFrom` and `Flush`, or large downloads lose the fast path and zip streaming breaks. A 1-second sampler keeps 120 samples of speeds, drive I/O and CPU.
+- Everything is read from `/proc` and `/sys` (no dependencies); failures degrade to "not available". Drive temperature comes from the kernel's hwmon if the drive offers it, otherwise from `smartctl -j` if installed. Never claim a reading you don't have; most USB drives report neither.
+- `healthAlerts` holds the warning thresholds (drive full, hot, read-only, SMART failing, CPU hot, low battery); add a test in `monitor_test.go` when you change them.
+
 ## Storage drive safety
 
 `storageOK()` (server.go) checks `<storage>/users` exists **freshly on every request** and that `<storage>/.nestnas-id` matches `config.StorageID` (marker read cached 2s). If not, `tryRelocate` scans `placesFn()` drives for `<mount>/<StorageSub>/.nestnas-id` and updates the storage path, so a drive replugged at a different mount point resumes by itself. `authed`, WebDAV, share links and sites return 503 when storage is missing. **Never use `MkdirAll` on a path that includes the storage root** (`userRoot` and `mkdirChain` use per-component `os.Mkdir`), or a just-unplugged drive's empty mount point would be silently recreated on the internal disk. Tests: `storage_test.go` and the "drive gone / back / wrong drive" smoke checks. Drive discovery for the setup picker is `places.go`.

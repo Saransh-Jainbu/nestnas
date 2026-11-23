@@ -191,6 +191,9 @@ main>*:nth-child(2){animation-delay:.05s}main>*:nth-child(3){animation-delay:.1s
 .empty svg.nest{width:70px;height:70px;margin:0 auto}
 .empty b{display:block;font:400 26px var(--serif);letter-spacing:-.02em;color:var(--text);margin:16px 0 6px}
 [hidden]{display:none!important}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:14px 0}
+.tile{margin:0;padding:18px 20px}.tile .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}.tile .v{font:350 30px/1.2 var(--serif);margin:6px 0 2px}
+.spark{width:100%;height:120px;display:block;margin:8px 0 4px}
 .trow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--line)}
 .trow b{display:block;font-weight:500}.trow span{color:var(--mute);font-size:13px}
 .sw{position:relative;flex:none;width:46px;height:26px;border-radius:99px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;padding:0;transition:background .2s}
@@ -364,6 +367,8 @@ const ICONS = {
   drive: '<rect x="3" y="8" width="18" height="9" rx="3"/><circle cx="17" cy="12.5" r="1" fill="currentColor" stroke="none"/><path d="M6 12.5h6"/>',
   up: '<path d="M12 19V6M6 11l6-6 6 6"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
   restore: '<path d="M4 12a8 8 0 108-8M4 4v5h5"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>',
   print: '<path d="M7 9V4h10v5M7 17H5a2 2 0 01-2-2v-4a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2h-2"/><rect x="7" y="14" width="10" height="6" rx="1"/>'
@@ -548,7 +553,7 @@ function pickFolder(start, onPick) {
 }
 
 /* ---------------- shell ---------------- */
-const TABS = [["files","Files",0,"folder"],["backup","Backup",0,"cloud"],["shares","Share links",0,"link"],["trash","Trash",0,"trash"],["connect","Connect",1,"wifi"],["security","Security",1,"shield"],["apps","Apps",1,"apps"],["users","People",1,"users"],["account","Account",0,"user"]];
+const TABS = [["files","Files",0,"folder"],["backup","Backup",0,"cloud"],["shares","Share links",0,"link"],["trash","Trash",0,"trash"],["snapshots","Snapshots",0,"clock"],["health","Health",1,"pulse"],["connect","Connect",1,"wifi"],["security","Security",1,"shield"],["apps","Apps",1,"apps"],["users","People",1,"users"],["account","Account",0,"user"]];
 const PRIMARY = ["files", "backup", "trash"]; // shown in the phone bottom bar; the rest are under "More"
 let storageTimer = null;
 // While the drive is missing, check every few seconds and carry on automatically when it returns.
@@ -572,7 +577,7 @@ function viewShell() {
   $("more").onclick = () => sheet("More", tabs.filter(t => !PRIMARY.includes(t[0])).map(t => ({ icon: t[3], label: t[1], run: () => { state.tab = t[0]; viewShell(); } })));
   $("out").onclick = async () => { await api("/api/logout", { body: {} }); state.me = null; boot(); };
   if (state.locked && ["backup", "trash"].includes(state.tab)) return unlockPanel();
-  ({ files: tabFiles, shares: tabShares, backup: tabBackup, trash: tabTrash, connect: tabConnect, security: tabSecurity, apps: tabApps, users: tabUsers, account: tabAccount })[state.tab]();
+  ({ files: tabFiles, shares: tabShares, backup: tabBackup, trash: tabTrash, snapshots: tabSnapshots, health: tabHealth, connect: tabConnect, security: tabSecurity, apps: tabApps, users: tabUsers, account: tabAccount })[state.tab]();
 }
 
 /* A phone-style bottom sheet of big buttons (used for "More" and per-file actions). */
@@ -668,13 +673,14 @@ async function tabFiles() {
     const tile = hasThumb(it) ? `<span class="ft"><img loading="lazy" alt="" src="${thumb(it, 96)}"></span>` : `<span class="ft k-${kind}">${ico(kind)}</span>`;
     row.innerHTML = `<div class="fn" tabindex="0" role="button">${tile}<div class="ftx"><b>${esc(it.name)}</b><small>${it.dir ? "Folder" : fmt(it.size)} · ${when.toLocaleDateString()}</small></div></div>
       <span class="fsz">${it.dir ? "" : fmt(it.size)}</span><span class="fdt">${when.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
-      <div class="acts">${canView ? `<button class="ib" data-a="view" title="View" aria-label="View">${ico("eye")}</button>` : ""}${it.dir ? `<button class="ib" data-a="zip" title="Download as zip" aria-label="Download as zip">${ico("archive")}</button>` : `<button class="ib" data-a="dl" title="Download" aria-label="Download">${ico("download")}</button><button class="ib" data-a="sh" title="Share link" aria-label="Share link">${ico("link")}</button>`}<button class="ib" data-a="rn" title="Rename" aria-label="Rename">${ico("edit")}</button><button class="ib bad" data-a="rm" title="Move to trash" aria-label="Move to trash">${ico("trash")}</button><button class="ib morerow" aria-label="Actions for ${esc(it.name)}">${ico("more")}</button></div>`;
+      <div class="acts">${canView ? `<button class="ib" data-a="view" title="View" aria-label="View">${ico("eye")}</button>` : ""}${it.dir ? `<button class="ib" data-a="zip" title="Download as zip" aria-label="Download as zip">${ico("archive")}</button>` : `<button class="ib" data-a="dl" title="Download" aria-label="Download">${ico("download")}</button><button class="ib" data-a="ver" title="Version history" aria-label="Version history">${ico("clock")}</button><button class="ib" data-a="sh" title="Share link" aria-label="Share link">${ico("link")}</button>`}<button class="ib" data-a="rn" title="Rename" aria-label="Rename">${ico("edit")}</button><button class="ib bad" data-a="rm" title="Move to trash" aria-label="Move to trash">${ico("trash")}</button><button class="ib morerow" aria-label="Actions for ${esc(it.name)}">${ico("more")}</button></div>`;
     const th = row.querySelector(".ft img"); if (th) th.onerror = () => { const t = th.parentElement; t.classList.add("k-" + kind); t.innerHTML = ico(kind); };
     const fn = row.querySelector(".fn"); fn.onclick = () => openIt(it); fn.onkeydown = e => { if (e.key === "Enter") openIt(it); };
     const act = guard(async (a) => {
       if (a === "view") openIt(it);
       if (a === "zip") location.href = "/api/zip?path=" + encodeURIComponent(full);
       if (a === "dl") location.href = "/api/download?path=" + encodeURIComponent(full);
+      if (a === "ver") versionsDialog(full, it.name);
       if (a === "rn") { const n = prompt("New name", it.name); if (n && n !== it.name) { await api("/api/rename", { body: { path: full, name: n } }); tabFiles(); } }
       if (a === "rm") { if (confirm(`Move "${it.name}" to the trash? You can restore it later.`)) { await api("/api/delete", { body: { path: full } }); tabFiles(); } }
       if (a === "sh") { const h = prompt("Link expires after how many hours? (0 = never)", "24"); if (h === null) return; const r = await api("/api/share", { body: { path: full, hours: +h || 0 } }); const link = location.origin + r.url; try { await navigator.clipboard.writeText(link); toast("Link copied: " + link); } catch (e) { prompt("Copy this link:", link); } }
@@ -685,7 +691,7 @@ async function tabFiles() {
       const items = [];
       if (canView) items.push({ icon: "eye", label: "View", run: () => act("view") });
       if (it.dir) items.push({ icon: "archive", label: "Download as zip", run: () => act("zip") });
-      else { items.push({ icon: "download", label: "Download", run: () => act("dl") }); items.push({ icon: "link", label: "Share link", run: () => act("sh") }); }
+      else { items.push({ icon: "download", label: "Download", run: () => act("dl") }); items.push({ icon: "link", label: "Share link", run: () => act("sh") }); items.push({ icon: "clock", label: "Version history", run: () => act("ver") }); }
       items.push({ icon: "edit", label: "Rename", run: () => act("rn") });
       items.push({ icon: "trash", label: "Move to trash", danger: true, run: () => act("rm") });
       sheet(it.name, items);
@@ -886,6 +892,126 @@ async function tabShares() {
   <td class="actions"><button class="ghost" data-c="${s.token}">${ico("copy")} Copy link</button><button class="danger" data-d="${s.token}">Revoke</button></td></tr>`).join("") || `<tr><td colspan="3"><div class="empty" style="padding:30px 0">${NEST}<b>No active links</b><span>Share a file from the Files tab and it appears here.</span></div></td></tr>`}</tbody></table></div></div>`;
   m.querySelectorAll("[data-c]").forEach(b => b.onclick = async () => { const l = location.origin + "/s/" + b.dataset.c; try { await navigator.clipboard.writeText(l); toast("Copied"); } catch (e) { prompt("Copy:", l); } });
   m.querySelectorAll("[data-d]").forEach(b => b.onclick = guard(async () => { await api("/api/share/delete", { body: { token: b.dataset.d } }); tabShares(); }));
+}
+
+/* ---------------- Version history and snapshots ---------------- */
+const fmtWhen = sec => new Date(sec * 1000).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const q64 = encodeURIComponent;
+
+async function versionsDialog(path, name) {
+  const ov = modal(`<div class="sheet-t">Version history</div><p class="small mute" id="h-vh">Loading…</p><div id="h-vl"></div><div class="toolbar"><button class="ghost" id="h-vc">Close</button></div>`);
+  $("h-vc").onclick = () => ov.remove();
+  const load = async () => {
+    const d = await api("/api/versions?path=" + q64(path));
+    $("h-vh").textContent = d.items.length ? `${name}: the last ${d.keep} earlier copies are kept for up to ${d.days} days. Restoring one keeps the current file as a version too.` : `${name} has no earlier versions. When the file is replaced, the old copy is kept here.`;
+    $("h-vl").innerHTML = d.items.map(v => `<div class="trow"><div><b>${fmtWhen(v.saved)}</b><span>${fmt(v.size)}</span></div><div class="toolbar" style="margin:0"><a class="ghost" style="padding:9px 14px;border:1px solid var(--line);border-radius:999px" href="/api/versions/download?path=${q64(path)}&id=${esc(v.id)}">${ico("download")}</a><button class="ghost" data-r="${esc(v.id)}">${ico("restore")} Restore</button><button class="danger" data-d="${esc(v.id)}">Delete</button></div></div>`).join("");
+    $("h-vl").querySelectorAll("[data-r]").forEach(b => b.onclick = guard(async () => { await api("/api/versions/restore", { body: { path, id: b.dataset.r } }); toast("Version restored"); ov.remove(); if (state.tab === "files") tabFiles(); }));
+    $("h-vl").querySelectorAll("[data-d]").forEach(b => b.onclick = guard(async () => { if (confirm("Delete this version?")) { await api("/api/versions/delete", { body: { path, id: b.dataset.d } }); load(); } }));
+  };
+  try { await load(); } catch (e) { $("h-vh").textContent = e.message; }
+}
+
+async function tabSnapshots() {
+  const m = $("main"); const d = await api("/api/snapshots");
+  m.innerHTML = head("04", "History", "", "Snapshots", "A snapshot remembers how all of your files looked at one moment, so you can bring back anything that was changed or deleted since.") + `
+  <div class="card">${cardHead("clock", `Take a <em>snapshot</em>`)}
+    <p class="small">Only new and changed files use extra space, and snapshots count toward your storage.</p>
+    <div class="toolbar"><input id="h-sn" placeholder="Name (optional), for example Before cleanup" style="flex:1;min-width:200px"><button id="h-mk">${ico("plus")} Take snapshot</button></div>
+    ${state.me.admin ? `<div class="trow"><div><b>Daily snapshots</b><span>${d.auto ? `On: every person gets an automatic snapshot each day, and the newest ${d.keep_auto} are kept.` : "Off: snapshots are only taken when you ask."}</span></div><button class="sw ${d.auto ? "on" : ""}" id="h-auto" role="switch" aria-checked="${!!d.auto}" aria-label="Daily snapshots"></button></div>` : ""}
+  </div>
+  <div class="card">${cardHead("archive", `Your <em>snapshots</em>`)}
+    ${d.items.length ? d.items.map(x => `<div class="trow"><div><b>${esc(x.name || "Snapshot")}${x.auto ? ` <span class="pill ok">Daily</span>` : ""}</b><span>${fmtWhen(x.created)} · ${x.files} files · ${fmt(x.bytes)}</span></div><div class="toolbar" style="margin:0"><button class="ghost" data-b="${esc(x.id)}">Browse</button><button class="danger" data-d="${esc(x.id)}">Delete</button></div></div>`).join("") : `<div class="empty" style="padding:30px 0">${NEST}<b>No snapshots yet</b><span>Take one above, or turn on daily snapshots.</span></div>`}
+  </div>`;
+  $("h-mk").onclick = guard(async () => { $("h-mk").disabled = true; try { await api("/api/snapshots/create", { body: { name: $("h-sn").value } }); toast("Snapshot taken"); } finally { tabSnapshots(); } });
+  const au = $("h-auto"); if (au) au.onclick = guard(async () => { await api("/api/snapshots/auto", { body: { enable: !d.auto } }); tabSnapshots(); });
+  m.querySelectorAll("[data-b]").forEach(b => b.onclick = () => browseSnapshot(b.dataset.b, d.items.find(x => x.id === b.dataset.b)));
+  m.querySelectorAll("[data-d]").forEach(b => b.onclick = guard(async () => { if (confirm("Delete this snapshot? Your current files are not affected.")) { await api("/api/snapshots/delete", { body: { id: b.dataset.d } }); tabSnapshots(); } }));
+}
+
+// Look inside a snapshot as it was, and bring files or folders back from it.
+function browseSnapshot(id, snap) {
+  let cur = "/";
+  const ov = modal(`<div class="sheet-t">${esc(snap.name || "Snapshot")}</div><p class="small mute">${fmtWhen(snap.created)}. Restoring never deletes anything; a file that exists now is kept as a version first.</p><div class="crumbs mono small" id="h-bp" style="padding:4px 8px"></div><div id="h-bl"></div>
+    <div class="toolbar"><button id="h-ba">${ico("restore")} Restore this folder</button><button class="ghost" id="h-bc">Close</button></div>`);
+  $("h-bc").onclick = () => ov.remove();
+  const restore = guard(async (path) => {
+    const r = await api("/api/snapshots/restore", { body: { id, path } });
+    toast(`Restored ${r.restored}, already identical ${r.unchanged}${r.failed ? `, could not restore ${r.failed}` : ""}`);
+    if (state.tab === "files") tabFiles();
+  });
+  const load = guard(async () => {
+    const d = await api("/api/snapshots/browse?id=" + q64(id) + "&path=" + q64(cur));
+    $("h-bp").textContent = cur;
+    $("h-ba").textContent = cur === "/" ? "Restore everything" : "Restore this folder";
+    $("h-bl").innerHTML = (cur !== "/" ? `<div class="trow" data-up="1" style="cursor:pointer"><div><b>.. (up)</b></div></div>` : "") + (d.items.map(i => `<div class="trow"><div ${i.dir ? `data-o="${esc(i.name)}" style="cursor:pointer"` : ""}><b style="display:flex;align-items:center;gap:8px">${ico(i.dir ? "folder" : "file")} ${esc(i.name)}</b><span>${i.dir ? "Folder" : fmt(i.size) + " · " + fmtWhen(i.mtime)}</span></div><div class="toolbar" style="margin:0">${i.dir ? "" : `<a class="ghost" style="padding:9px 14px;border:1px solid var(--line);border-radius:999px" href="/api/snapshots/download?id=${q64(id)}&path=${q64((cur === "/" ? "" : cur) + "/" + i.name)}">${ico("download")}</a>`}<button class="ghost" data-r="${esc(i.name)}">${ico("restore")} Restore</button></div></div>`).join("") || `<p class="small mute">This folder was empty.</p>`);
+    const up = $("h-bl").querySelector("[data-up]"); if (up) up.onclick = () => { cur = cur.slice(0, cur.lastIndexOf("/")) || "/"; load(); };
+    $("h-bl").querySelectorAll("[data-o]").forEach(el => el.onclick = () => { cur = (cur === "/" ? "" : cur) + "/" + el.dataset.o; load(); });
+    $("h-bl").querySelectorAll("[data-r]").forEach(b => b.onclick = () => restore((cur === "/" ? "" : cur) + "/" + b.dataset.r));
+  });
+  $("h-ba").onclick = () => restore(cur);
+  load();
+}
+
+/* ---------------- Health ---------------- */
+const rate = b => fmt(Math.max(0, b)) + "/s";
+function spark(hist, keys, colors, max) {
+  const W = 600, H = 120, n = Math.max(2, hist.length);
+  const top = Math.max(max, 1);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="spark" role="img" aria-label="Transfer speed over the last two minutes">
+    <path d="M0 ${H - 1}H${W}" stroke="var(--line)" fill="none"/>` + keys.map((k, ki) => {
+    const pts = hist.map((x, i) => `${(i * (W / (n - 1))).toFixed(1)},${(H - 4 - (x[k] / top) * (H - 10)).toFixed(1)}`);
+    return pts.length ? `<polyline points="${pts.join(" ")}" fill="none" stroke="${colors[ki]}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>` : "";
+  }).join("") + `</svg>`;
+}
+const dur = sec => { const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`; };
+const tile = (k, v, sub) => `<div class="card tile"><div class="k mono">${k}</div><div class="v">${v}</div><div class="small mute">${sub || ""}</div></div>`;
+const gauge = (pct, warn) => `<div class="bar"><div style="width:${Math.min(100, pct).toFixed(0)}%;${pct > 90 ? "background:var(--bad)" : pct > warn ? "background:var(--peach)" : ""}"></div></div>`;
+
+async function tabHealth() {
+  const m = $("main");
+  m.innerHTML = head("05", "Monitoring", "", "Health", "Drive health and temperature, transfer speeds and how hard this computer is working. Updates every two seconds.") + `<div id="hroot"><p class="mute">Loading…</p></div>`;
+  const render = d => {
+    const t = d.transfer, dr = d.drive, sy = d.system, sm = dr.smart;
+    const pill = { ok: ["ok", "Healthy"], warn: ["bad", "Needs attention"], crit: ["bad", "Problem"] }[d.status] || ["ok", "Healthy"];
+    const usedPct = dr.total ? 100 * (dr.total - dr.free) / dr.total : 0;
+    const peak = Math.max(1e6, ...d.history.map(x => Math.max(x.in, x.out)));
+    const dpeak = Math.max(1e6, ...d.history.map(x => Math.max(x.dr, x.dw)));
+    $("hroot").innerHTML = `
+    <div class="card" style="${d.status === "ok" ? "" : "border-color:var(--bad)"}">${cardHead("pulse", `System <em>status</em>`, `<span class="pill ${pill[0]}">${pill[1]}</span>`)}
+      ${d.alerts.length ? d.alerts.map(a => `<p class="small" style="color:${a.level === "crit" ? "var(--bad)" : "#ff9a3c"}">${ico(a.level === "crit" ? "x" : "shield")} ${esc(a.text)}</p>`).join("") : `<p class="small">No problems found: the drive is connected, has space, and nothing is running hot.</p>`}
+    </div>
+    <div class="tiles">
+      ${tile("Download speed", rate(t.out_bps), `peak ${rate(t.peak_out)} · sent ${fmt(t.total_out)}`)}
+      ${tile("Upload speed", rate(t.in_bps), `peak ${rate(t.peak_in)} · received ${fmt(t.total_in)}`)}
+      ${tile("Processor", sy.cpu_pct.toFixed(0) + "%", sy.cpu_temp != null ? sy.cpu_temp.toFixed(0) + " °C" : "temperature not available")}
+      ${tile("Memory", sy.mem_pct.toFixed(0) + "%", `${fmt(sy.mem_used)} of ${fmt(sy.mem_total)}`)}
+    </div>
+    <div class="card">${cardHead("wifi", `Transfer <em>speed</em>`)}
+      <p class="small mute"><span style="color:var(--accent)">&#9679;</span> Download (from the NAS) &nbsp; <span style="color:#ff9a3c">&#9679;</span> Upload (to the NAS) · last two minutes · scale up to ${rate(peak)}</p>
+      ${spark(d.history, ["out", "in"], ["var(--accent)", "#ff9a3c"], peak)}
+    </div>
+    <div class="card">${cardHead("drive", `Storage <em>drive</em>`, `<span class="pill ${dr.connected ? "ok" : "bad"}">${dr.connected ? "Connected" : "Not connected"}</span>`)}
+      <div class="trow" style="border-top:0"><div><b>${esc(dr.model || dr.device || "Storage drive")}</b><span>${[dr.kind, dr.usb ? "USB" : "", dr.removable ? "removable" : "", dr.fs, dr.read_only ? "read-only" : ""].filter(Boolean).join(" · ") || esc(dr.path)}</span></div></div>
+      <div class="trow"><div style="flex:1"><b>${fmt(dr.total - dr.free)} used of ${fmt(dr.total)}</b><span>${fmt(dr.free)} free</span>${gauge(usedPct, 80)}</div></div>
+      <div class="trow"><div><b>Temperature</b><span>${dr.temp_c != null ? "" : esc(dr.temp_note || "Not reported")}</span></div><b>${dr.temp_c != null ? dr.temp_c.toFixed(0) + " °C" : "—"}</b></div>
+      <div class="trow"><div><b>Drive activity</b><span>Reading ${rate(dr.read_bps)} · writing ${rate(dr.write_bps)} · busy ${dr.busy_pct.toFixed(0)}%</span></div></div>
+      ${spark(d.history, ["dr", "dw"], ["var(--accent)", "#ff9a3c"], dpeak)}
+      <div class="trow"><div><b>Drive self-test (SMART)</b><span>${sm && sm.available ? (sm.passed === false ? "The drive reports that it is failing." : "The drive reports that it is healthy.") : esc(sm ? sm.reason : "Not available")}</span></div><b>${sm && sm.available ? (sm.passed === false ? "Failing" : "Passed") : "—"}</b></div>
+      ${sm && sm.available ? `<div class="trow"><div><b>Details</b><span>${[sm.power_on_hours != null ? `${sm.power_on_hours} hours powered on` : "", sm.reallocated != null ? `${sm.reallocated} reallocated sectors` : "", sm.pending != null ? `${sm.pending} pending sectors` : "", sm.percent_used != null ? `${sm.percent_used}% of SSD life used` : "", sm.media_errors != null ? `${sm.media_errors} media errors` : ""].filter(Boolean).join(" · ") || "No details reported"}</span></div></div>` : ""}
+    </div>
+    <div class="card">${cardHead("user", `This <em>computer</em>`)}
+      <div class="trow" style="border-top:0"><div><b>Processor</b><span>${sy.cpus} cores · load ${sy.load.slice(0, 3).join(" ")}</span></div><b>${sy.cpu_pct.toFixed(0)}%${sy.cpu_temp != null ? " · " + sy.cpu_temp.toFixed(0) + " °C" : ""}</b></div>
+      <div class="trow"><div style="flex:1"><b>Memory</b><span>${fmt(sy.mem_used)} of ${fmt(sy.mem_total)} · NestNAS uses ${fmt(sy.nestnas_rss)}</span>${gauge(sy.mem_pct, 80)}</div></div>
+      <div class="trow"><div><b>Running for</b><span>Time since the computer started</span></div><b>${dur(sy.uptime)}</b></div>
+      ${sy.battery.present ? `<div class="trow"><div><b>Battery</b><span>${sy.battery.on_ac ? "Plugged in" : "On battery: the NAS goes offline if it runs out"} · ${esc(sy.battery.status)}</span></div><b>${sy.battery.percent}%</b></div>` : ""}
+    </div>`;
+  };
+  const tick = async () => {
+    if (state.tab !== "health" || !$("hroot")) return;
+    try { render(await api("/api/monitor")); } catch (e) { $("hroot").innerHTML = `<p class="mute">${esc(e.message)}</p>`; }
+    setTimeout(tick, 2000);
+  };
+  tick();
 }
 
 /* ---------------- Trash ---------------- */

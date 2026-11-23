@@ -50,7 +50,11 @@ func convSkip(p string, name string) bool {
 	if strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".part") || strings.HasPrefix(name, ".nestnas")) {
 		return true
 	}
-	return name == "meta.json" && strings.Contains(filepath.ToSlash(p), "/"+trashName+"/")
+	sp := filepath.ToSlash(p)
+	if strings.Contains(sp, "/"+snapshotsName+"/") && strings.HasSuffix(name, ".json") {
+		return true // snapshot manifests
+	}
+	return name == "meta.json" && (strings.Contains(sp, "/"+trashName+"/") || strings.Contains(sp, "/"+versionsName+"/"))
 }
 
 // convertFiles walks every user's files and rewrites each one that is in the wrong form.
@@ -187,6 +191,8 @@ func (s *Server) startConvert(mode string) bool {
 	}()
 	return true
 }
+
+func atomicBusy(p *int32) bool { return atomic.LoadInt32(p) == 1 }
 
 // ResumeConversion restarts an interrupted conversion when the key is available.
 func (s *Server) resumeConversion() {

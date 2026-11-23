@@ -43,10 +43,12 @@ type trashItem struct {
 	Deleted int64  `json:"deleted"`
 }
 
-// inTrash reports whether a user-supplied path points at the trash folder itself.
+// inTrash reports whether a user-supplied path points into one of NestNAS's own hidden folders
+// (trash, file versions, snapshots). Those are only reachable through their own API endpoints.
+// The comparison ignores case because external drives (exFAT, NTFS) are case-insensitive.
 func inTrash(rel string) bool {
-	c := path.Clean("/" + rel)
-	return c == "/"+trashName || strings.HasPrefix(c, "/"+trashName+"/")
+	first, _, _ := strings.Cut(strings.TrimPrefix(path.Clean("/"+rel), "/"), "/")
+	return internalName(first)
 }
 
 func moveToTrash(root, abs, rel string) error {
@@ -236,12 +238,11 @@ func (s *Server) zipFolder(w http.ResponseWriter, r *http.Request, u config.User
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.zip"`)
 	zw := zip.NewWriter(w)
 	defer zw.Close()
-	trash := filepath.Join(root, trashName)
 	_ = filepath.WalkDir(abs, func(p string, d os.DirEntry, err error) error {
 		if err != nil || p == abs {
 			return nil
 		}
-		if p == trash {
+		if d.IsDir() && filepath.Dir(p) == root && internalName(d.Name()) {
 			return filepath.SkipDir
 		}
 		if d.Type()&os.ModeSymlink != 0 || strings.HasSuffix(d.Name(), ".part") && strings.HasPrefix(d.Name(), ".") {

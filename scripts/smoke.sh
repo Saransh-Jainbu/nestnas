@@ -331,6 +331,74 @@ if [ "$ENC" = 1 ]; then
   chk "enc: auto-unlock key file removed" "$([ -e "$T/home/vault-auto.key" ] && echo present || echo gone)" gone
 fi
 
+# --- file versions and snapshots (both modes) ---
+UD="$T/store/users/admin"
+put(){ printf '%s' "$2" > "$T/put.tmp"; $C -X PUT --data-binary @$T/put.tmp "$B/api/upload?path=/&name=$1" -o /dev/null; }
+vcount(){ $C "$B/api/versions?path=/$1" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['items']))"; }
+vid(){ $C "$B/api/versions?path=/$1" | python3 -c "import sys,json;print(json.load(sys.stdin)['items'][$2]['id'])"; }
+put vf.txt "version-one"; put vf.txt "version-two"
+chk "versions: overwrite keeps the old copy" "$(vcount vf.txt)" 1
+chk "versions: current file is the new one" "$($C "$B/api/download?path=/vf.txt")" version-two
+V1=$(vid vf.txt 0)
+chk "versions: old copy can be downloaded" "$($C "$B/api/versions/download?path=/vf.txt&id=$V1")" version-one
+chk "versions: unauthenticated list refused" "$(code "$B/api/versions?path=/vf.txt")" 401
+chk "versions: restore" "$(code -b $J -X POST -d "{\"path\":\"/vf.txt\",\"id\":\"$V1\"}" $B/api/versions/restore)" 200
+chk "versions: restored content is current" "$($C "$B/api/download?path=/vf.txt")" version-one
+chk "versions: the replaced file became a version (restore can be undone)" "$(vcount vf.txt)" 2
+chk "versions: bad id refused" "$(code -b $J -X POST -d '{"path":"/vf.txt","id":"../../x"}' $B/api/versions/restore)" 400
+printf 'dav-one' > "$T/d1.txt"; printf 'dav-two' > "$T/d2.txt"
+$D -X PUT --data-binary @$T/d1.txt $B/dav/dvv.txt -o /dev/null; $D -X PUT --data-binary @$T/d2.txt $B/dav/dvv.txt -o /dev/null
+chk "versions: a network-drive overwrite keeps the old copy too" "$(vcount dvv.txt)" 1
+for i in $(seq 1 13); do put many.txt "rev-$i"; done
+chk "versions: at most 10 are kept" "$(vcount many.txt)" 10
+chk "versions: delete one" "$(code -b $J -X POST -d "{\"path\":\"/vf.txt\",\"id\":\"$V1\"}" $B/api/versions/delete)" 200
+chk "versions: internal folders are not listed" "$($C "$B/api/list?path=/" | grep -c '\.versions\|\.snapshots')" 0
+chk "versions: the hidden folder is unreachable" "$(code -b $J "$B/api/list?path=/.versions")" 400
+chk "versions: even with different letter case" "$(code -b $J "$B/api/list?path=/.VERSIONS")" 400
+chk "versions: snapshots folder is unreachable" "$(code -b $J "$B/api/download?path=/.snapshots/m")" 400
+
+put snapfile.txt "snap-original"
+S1=$($C -X POST -d '{"name":"before change"}' $B/api/snapshots/create | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])")
+chk "snapshots: created" "$([ -n "$S1" ] && echo yes)" yes
+N1=$(ls "$UD/.snapshots/objects" | wc -l)
+S2=$($C -X POST -d '{"name":"again"}' $B/api/snapshots/create | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])")
+chk "snapshots: an unchanged folder costs no extra stored copies" "$(ls "$UD/.snapshots/objects" | wc -l)" "$N1"
+chk "snapshots: listed with both entries" "$($C $B/api/snapshots | python3 -c "import sys,json;print(len(json.load(sys.stdin)['items']))")" 2
+chk "snapshots: unauthenticated refused" "$(code $B/api/snapshots)" 401
+put snapfile.txt "snap-changed"
+chk "snapshots: browse shows the file as it was" "$($C "$B/api/snapshots/browse?id=$S1&path=/" | grep -c snapfile.txt)" 1
+chk "snapshots: download gives the old content" "$($C "$B/api/snapshots/download?id=$S1&path=/snapfile.txt")" snap-original
+chk "snapshots: restore a file" "$($C -X POST -d "{\"id\":\"$S1\",\"path\":\"/snapfile.txt\"}" $B/api/snapshots/restore | grep -c '"restored":1')" 1
+chk "snapshots: restored content is current" "$($C "$B/api/download?path=/snapfile.txt")" snap-original
+chk "snapshots: the file it replaced is kept as a version" "$(vcount snapfile.txt)" 2
+$C -X POST -d '{"path":"/snapfile.txt"}' $B/api/delete >/dev/null
+chk "snapshots: a deleted file is gone" "$(code -b $J "$B/api/download?path=/snapfile.txt")" 404
+chk "snapshots: restore a deleted file" "$($C -X POST -d "{\"id\":\"$S1\",\"path\":\"/snapfile.txt\"}" $B/api/snapshots/restore | grep -c '"restored":1')" 1
+chk "snapshots: the deleted file is back" "$($C "$B/api/download?path=/snapfile.txt")" snap-original
+chk "snapshots: restoring everything changes nothing that is already identical" "$($C -X POST -d "{\"id\":\"$S1\",\"path\":\"/\"}" $B/api/snapshots/restore | grep -c '"failed":0')" 1
+chk "snapshots: bad id refused" "$(code -b $J -X POST -d '{"id":"../x","path":"/"}' $B/api/snapshots/restore)" 404
+chk "snapshots: delete one" "$(code -b $J -X POST -d "{\"id\":\"$S2\"}" $B/api/snapshots/delete)" 200
+chk "snapshots: the stored copies stay while another snapshot uses them" "$(ls "$UD/.snapshots/objects" | wc -l)" "$N1"
+chk "snapshots: delete the last one" "$(code -b $J -X POST -d "{\"id\":\"$S1\"}" $B/api/snapshots/delete)" 200
+chk "snapshots: stored copies are cleaned up" "$(ls "$UD/.snapshots/objects" | wc -l)" 0
+chk "snapshots: turn on daily snapshots (admin)" "$(code -b $J -X POST -d '{"enable":true}' $B/api/snapshots/auto)" 200
+chk "snapshots: daily setting is reported" "$($C $B/api/snapshots | grep -c '"auto":true')" 1
+$C -X POST -d '{"enable":false}' $B/api/snapshots/auto >/dev/null
+
+# --- health monitor ---
+chk "monitor: needs a login" "$(code $B/api/monitor)" 401
+M0=$($C $B/api/monitor | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['transfer']['total_in'],d['transfer']['total_out'])")
+head -c 300000 /dev/urandom > "$T/speed.bin"
+$C -X PUT --data-binary @$T/speed.bin "$B/api/upload?path=/&name=speed.bin" >/dev/null
+$C "$B/api/download?path=/speed.bin" -o /dev/null
+M1=$($C $B/api/monitor | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['transfer']['total_in'],d['transfer']['total_out'])")
+chk "monitor: an upload is counted as received bytes" "$(python3 -c "a,b=map(int,'$M0'.split());c,d=map(int,'$M1'.split());print('yes' if c-a>=300000 else 'no')")" yes
+chk "monitor: a download is counted as sent bytes" "$(python3 -c "a,b=map(int,'$M0'.split());c,d=map(int,'$M1'.split());print('yes' if d-b>=300000 else 'no')")" yes
+chk "monitor: polling the monitor is not counted as traffic" "$(for i in 1 2 3; do $C $B/api/monitor >/dev/null; done; $C $B/api/monitor | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['transfer']['total_in'],d['transfer']['total_out'])")" "$M1"
+chk "monitor: reports status, alerts, drive, history and system" "$($C $B/api/monitor | python3 -c "import sys,json;d=json.load(sys.stdin);print(all(k in d for k in ['status','alerts','transfer','drive','history','system']) and isinstance(d['alerts'],list))")" True
+chk "monitor: the drive section has usage figures" "$($C $B/api/monitor | python3 -c "import sys,json;d=json.load(sys.stdin)['drive'];print(d['connected'] and d['total']>0 and d['free']>0)")" True
+chk "monitor: downloads still work after counting (range request)" "$($C -H 'Range: bytes=0-9' "$B/api/download?path=/speed.bin" | wc -c)" 10
+
 # --- turning encryption on and off for an existing NAS (plain-mode run only) ---
 if [ "$ENC" = 0 ]; then
   waitconv(){ for i in $(seq 1 40); do [ "$(curl -s -b $J $B/api/vault | grep -c '"running":false')" = 1 ] && return; sleep 0.5; done; }

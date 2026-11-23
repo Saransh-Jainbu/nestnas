@@ -49,6 +49,7 @@ type Server struct {
 	davCache    map[string]davEntry
 	vault       *vault.Vault
 	conv        converter
+	mon         monitor
 	convRunning int32
 	thumbs      *thumbCache
 	thumbSem    chan struct{}
@@ -73,6 +74,8 @@ func New(st *config.Store, version string, port int) *Server {
 		thumbs: newThumbCache(48 << 20), thumbSem: make(chan struct{}, 3)}
 	m := http.NewServeMux()
 	s.Mux = m
+	go s.snapshotLoop()
+	go s.monitorLoop()
 
 	m.HandleFunc("/", s.index)
 	m.HandleFunc("/sites/", s.site)
@@ -96,6 +99,18 @@ func New(st *config.Store, version string, port int) *Server {
 	m.HandleFunc("/api/thumb", s.authed(s.thumb))
 	m.HandleFunc("/api/backup/check", s.authed(s.backupCheck))
 	m.HandleFunc("/api/zip", s.authed(s.zipFolder))
+	m.HandleFunc("/api/monitor", s.adminOnly(s.monitorAPI))
+	m.HandleFunc("/api/versions", s.authed(s.versionsAPI))
+	m.HandleFunc("/api/versions/download", s.authed(s.versionDownload))
+	m.HandleFunc("/api/versions/restore", s.authed(s.versionRestore))
+	m.HandleFunc("/api/versions/delete", s.authed(s.versionDelete))
+	m.HandleFunc("/api/snapshots", s.authed(s.snapshotsList))
+	m.HandleFunc("/api/snapshots/create", s.authed(s.snapshotCreate))
+	m.HandleFunc("/api/snapshots/delete", s.authed(s.snapshotDelete))
+	m.HandleFunc("/api/snapshots/browse", s.authed(s.snapshotBrowse))
+	m.HandleFunc("/api/snapshots/download", s.authed(s.snapshotDownload))
+	m.HandleFunc("/api/snapshots/restore", s.authed(s.snapshotRestore))
+	m.HandleFunc("/api/snapshots/auto", s.adminOnly(s.snapshotAuto))
 	m.HandleFunc("/api/trash", s.authed(s.trashList))
 	m.HandleFunc("/api/trash/restore", s.authed(s.trashRestore))
 	m.HandleFunc("/api/trash/delete", s.authed(s.trashDelete))
@@ -152,7 +167,14 @@ func (s *Server) Handler() http.Handler {
 				}
 			}
 		}
-		s.Mux.ServeHTTP(w, r)
+		if r.URL.Path == "/api/monitor" { // the monitor's own polling is not traffic
+			s.Mux.ServeHTTP(w, r)
+			return
+		}
+		if r.Body != nil && r.Body != http.NoBody {
+			r.Body = countReader{r.Body, &s.mon.in}
+		}
+		s.Mux.ServeHTTP(countWriter{w, &s.mon.out}, r)
 	})
 }
 

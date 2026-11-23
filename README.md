@@ -21,6 +21,9 @@ Website: <https://nestnas.vercel.app> (its source is in [`site/`](site/)).
 | **Encrypted at rest** | One switch in Security: file contents are AES-256-GCM encrypted on the drive, and the app opens them as normal. Turning it off decrypts everything back to ordinary files |
 | **Encrypted in transit** | HTTPS (TLS 1.3 only) with NestNAS's own private certificate authority |
 | **Network drive** | Built-in WebDAV: mount your NAS in Finder, Windows Explorer or Linux file managers, signing in with your NestNAS login |
+| **File versions** | Replacing a file (an upload, or saving over it on the network drive) keeps the old copy. The last 10 versions, up to 90 days, can be downloaded or restored from a file's history |
+| **Snapshots** | A snapshot remembers how all your files looked at one moment. Browse it, download from it, and restore a file, a folder or everything without deleting anything. Optional daily snapshots keep the newest 7 |
+| **Health monitor** | Live upload and download speed with a two-minute graph, drive usage, activity and temperature, processor load and temperature, memory, battery, and plain-language warnings (drive full, hot, read-only, failing, low battery). Detailed drive self-test (SMART) when `smartctl` is installed |
 | **Trash** | Deleting moves to a per-user trash; restore any time; purged after 30 days |
 | **Share links** | Public download link per file, with expiry and revoke |
 | **Users and quotas** | Admin adds people; each gets a private folder and their own limit |
@@ -117,6 +120,10 @@ Pick it in the setup page: **Choose folder…** lists your drives with free spac
 - Deleting over WebDAV goes to the trash. Locks are accepted but not enforced (enough for Finder to write).
 
 ## Known limitations
+
+- **Health monitor:** reads the system's own counters (Linux `/proc` and `/sys`); macOS and Windows show less. Most USB drives do not report their temperature or SMART data to the computer. To see them, install `smartmontools` and let NestNAS run `smartctl` on the drive (usually needs root or a sudo rule). Without it the monitor says so instead of guessing.
+
+- **Versions and snapshots** are not a backup of the drive: they live on the same drive as your files and count toward each person's allowance. On exFAT/FAT drives a snapshot stores real copies of changed files; on ext4, NTFS and APFS it shares disk blocks with the live files. A file that is renamed or moved starts a new version history, and a deleted file's older versions are removed when they age out.
 
 - **Encryption:** names, sizes and dates stay visible. It protects a stolen laptop or drive while locked, and your traffic on the network; it does not protect against malware on the unlocked NAS or someone who knows your passphrase. If you lose both the passphrase and the recovery key, your files are unrecoverable by design. Encryption can be switched on or off at any time from the Security tab; existing files are converted in place in the background (turning it off needs your passphrase). The file format is NestNAS's own and **has not been independently audited**.
 - **Phones:** iOS Safari can't upload in the background, so phone backup needs the page open with the screen on. Truly automatic backup would need a native app.

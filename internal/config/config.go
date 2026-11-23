@@ -34,14 +34,15 @@ type Share struct {
 }
 
 type Config struct {
-	StoragePath string  `json:"storage_path"`
-	StorageID   string  `json:"storage_id,omitempty"`  // random id also stored in <storage>/.nestnas-id
-	Encrypted   bool    `json:"encrypted,omitempty"`   // contents are encrypted at rest (see internal/vault)
-	AutoUnlock  bool    `json:"auto_unlock,omitempty"` // key kept on this computer so it unlocks itself on start
-	Converting  string  `json:"converting,omitempty"`  // "encrypt" or "decrypt" while existing files are being converted
-	StorageSub  string  `json:"storage_sub,omitempty"` // storage folder relative to its drive, to find it again after re-plugging
-	Users       []User  `json:"users"`
-	Shares      []Share `json:"shares"`
+	StoragePath   string  `json:"storage_path"`
+	StorageID     string  `json:"storage_id,omitempty"`     // random id also stored in <storage>/.nestnas-id
+	Encrypted     bool    `json:"encrypted,omitempty"`      // contents are encrypted at rest (see internal/vault)
+	AutoUnlock    bool    `json:"auto_unlock,omitempty"`    // key kept on this computer so it unlocks itself on start
+	SnapshotsAuto bool    `json:"snapshots_auto,omitempty"` // take a snapshot of every user daily
+	Converting    string  `json:"converting,omitempty"`     // "encrypt" or "decrypt" while existing files are being converted
+	StorageSub    string  `json:"storage_sub,omitempty"`    // storage folder relative to its drive, to find it again after re-plugging
+	Users         []User  `json:"users"`
+	Shares        []Share `json:"shares"`
 }
 
 type Store struct {
@@ -113,6 +114,19 @@ func (s *Store) SetEncryption(enabled, auto bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.c.Encrypted, s.c.AutoUnlock = enabled, auto
+	return s.save()
+}
+
+func (s *Store) SnapshotsAuto() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.c.SnapshotsAuto
+}
+
+func (s *Store) SetSnapshotsAuto(on bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.c.SnapshotsAuto = on
 	return s.save()
 }
 

@@ -33,4 +33,5 @@ Needs Go 1.18+. No other dependencies, and please keep it that way (see `AGENTS.
 
 ## Code of conduct
 
+
 Be kind and constructive. Assume good intent. No harassment.
