@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://nestnas.vercel.app/sitemap.xml
