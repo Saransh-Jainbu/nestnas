@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question or share an idea
+    url: https://github.com/Saransh-Jainbu/nestnas/discussions
+    about: Setup help, "how do I...?" questions and ideas that aren't bugs yet.
+  - name: Report a security problem
+    url: https://github.com/Saransh-Jainbu/nestnas/security/advisories/new
+    about: Please report vulnerabilities privately, not as a public issue. See SECURITY.md.
+  - name: Documentation and website
+    url: https://nestnas.vercel.app
+    about: Features, install steps and known limitations.

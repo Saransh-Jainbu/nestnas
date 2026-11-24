@@ -27,6 +27,8 @@ One program. Nothing else to install. No subscription.</p>
 <p align="center"><img src="assets/screens/files.png" alt="The NestNAS file manager: files grouped by date, with several selected" width="900"><br>
 <sub>Screenshots show the real dashboard with sample data.</sub></p>
 
+NestNAS is free, open-source **NAS software** for building a **self-hosted private cloud** from a laptop, an old PC or an external drive. It is a simple alternative to paid cloud storage subscriptions: a web file manager, encrypted storage, phone photo backup, a WebDAV network drive, photo search by content and face recognition, all in one Go program with no dependencies.
+
 > **Status: early (pre-1.0).** It works end to end and is well tested, but it has had no independent security audit, and several parts have only been tried on one Linux laptop (see [Known limitations](#known-limitations)). Don't rely on it as the only copy of data you can't replace.
 
 ## Why NestNAS
@@ -35,6 +37,13 @@ One program. Nothing else to install. No subscription.</p>
 - **Yours.** Files stay on your laptop or on an external drive. The core is a single Go program that uses only the standard library: no database, no cloud, no dependencies to audit.
 - **Private.** HTTPS with its own certificate authority, optional AES-256 encryption on the drive, and AI features (photo search, faces) that run on your computer and never send anything out.
 - **Safe to unplug.** Pull the external drive out and plug it back in whenever you like. NestNAS never falls back to your laptop's disk and carries on by itself.
+
+## How it compares
+
+NestNAS is aimed at people who want a private cloud without becoming a system administrator. It is **not** a disk-array appliance.
+
+- **Pick NestNAS** if you want to turn a laptop or a spare computer into personal cloud storage in a couple of minutes, use an external drive, back up phone photos, search them, and keep one small program running.
+- **Pick something else** if you need RAID or ZFS disk arrays, SMB or NFS network shares, or a big ecosystem of apps and office tools. Projects such as TrueNAS and OpenMediaVault focus on disk arrays and network shares, and Nextcloud on collaboration apps. NestNAS does not try to replace them.
 
 ## What you get
 
@@ -147,6 +156,18 @@ It runs as your normal user, no root needed: a systemd user unit (Linux), a Laun
 The certificate install is a one-time step per device. It exists because NestNAS uses its own certificate authority instead of a public one; it keeps your password and photos encrypted on the Wi-Fi and proves the phone is talking to your laptop.
 
 Apple's **Files app does not support WebDAV** (it only speaks `smb://`), so on an iPhone use the web app, or a WebDAV app such as Documents by Readdle with `https://<ip>:8443/dav/`.
+
+## FAQ
+
+**Does it need Docker or a database?** No. The core is one program with no database and no dependencies. Docker is only needed for the optional one-click apps.
+
+**Does it send my photos anywhere?** No. Photo search and face recognition run on your computer. The only network use is the one-time download of the optional AI models.
+
+**Can I reach it away from home?** Yes, through the guided Tailscale setup. Don't port-forward it to the internet.
+
+**Which systems does it run on?** It is developed and tested on Ubuntu Linux. Windows, macOS and ARM builds are published but have not been tested on real machines yet.
+
+**Is my data safe?** Files can be encrypted on the drive with AES-256, traffic uses TLS 1.3, and the cryptography is checked against standard test vectors. It has not had an independent audit, and it is not RAID, so keep a second copy of anything irreplaceable.
 
 ## Smart search and people
 
