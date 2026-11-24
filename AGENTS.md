@@ -95,6 +95,7 @@ internal/web            index.html (the whole UI, one file) + icon, embedded wit
 - Models are downloaded on opt-in into `<home>/models/<id>/`, pinned by SHA-256 and revision in `smart.go`. Never add a model without a pinned checksum, and keep licences permissive (MIT/Apache).
 - The indexer (`smartLoop`) decodes each photo once and feeds CLIP and the face pipeline. Results live in `<user>/.search/<model>/seg-*.bin` and `<user>/.search/faces/` (+ `people.json`), written through `newContentWriter` so encryption applies. `.search` is an internal folder (hidden from every path API). Face keys are `size-mtime-index`, so renaming or moving a photo keeps its people.
 - Photo search thresholds are per model (`Floor`/`Loose` in `clipModels`): similarity scales differ between models. Re-tune them when adding one.
+- A person can have at most one face per photo (two faces in one photo are two people): `assignNew` enforces it and also repairs older groupings when the index loads. Keep that rule if you change the grouping.
 - Face grouping is greedy (`assignNew`, similarity to a person's average, `assignSim`); user edits (names, merge, "not this person", hide) are authoritative and stored in `people.json`.
 - The smoke tests for these need the models and sample photos locally (`SMOKE_SMART`/`SMOKE_PHOTOS`, `SMOKE_FACES`/`SMOKE_FACE_PHOTOS`); without them those sections are skipped.
 

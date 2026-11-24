@@ -483,9 +483,22 @@ if [ -n "${SMOKE_FACES:-}" ] && [ -d "${SMOKE_FACE_PHOTOS:-/nonexistent}" ]; the
     chk "people: names survive a restart" "$($C $B/api/people | grep -c 'Albert Einstein')" 1
   fi
   chk "people: a deleted photo's face disappears" "$($C -X POST -d '{"path":"/curie.jpg"}' $B/api/delete >/dev/null; sleep 22; $C "$B/api/people?hidden=1" | python3 -c "import sys,json;print(sum(x['photos'] for x in json.load(sys.stdin)['people']))")" 3
+  $C -X PUT --data-binary @"$SMOKE_FACE_PHOTOS/solvay.jpg" "$B/api/upload?path=/&name=solvay.jpg" >/dev/null
+  for i in $(seq 1 120); do [ "$($C "$B/api/people?hidden=1" | python3 -c "import sys,json;print(sum(x['faces'] for x in json.load(sys.stdin)['people'])>=25)")" = True ] && break; sleep 1; done
+  chk "people: a photo with many faces gives many different people" "$($C "$B/api/people?hidden=1" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['people'])>=20)")" True
+  chk "people: no person has two faces from the same photo" "$($C "$B/api/people?hidden=1" | python3 -c "import sys,json;print(all(p['faces']==p['photos'] for p in json.load(sys.stdin)['people']))")" True
+  P2=$($C "$B/api/people/photo?path=/solvay.jpg" | python3 -c "import sys,json;d=json.load(sys.stdin)['people'];print(len(d)>=25, d[0]['id'], d[1]['id'])")
+  chk "people: a photo lists everyone in it" "$(echo "$P2" | cut -d' ' -f1)" True
+  PA=$(echo "$P2" | cut -d' ' -f2); PB=$(echo "$P2" | cut -d' ' -f3)
+  $C -X POST -d "{\"op\":\"rename\",\"id\":\"$PA\",\"name\":\"Pat Example\"}" $B/api/people/edit >/dev/null; $C -X POST -d "{\"op\":\"rename\",\"id\":\"$PB\",\"name\":\"Sam Example\"}" $B/api/people/edit >/dev/null
+  chk "people: the same photo shows up under the first person" "$($C "$B/api/people/photos?id=$PA" | grep -c solvay.jpg)" 1
+  chk "people: and under the second person" "$($C "$B/api/people/photos?id=$PB" | grep -c solvay.jpg)" 1
+  chk "people: the photo shows both names" "$($C "$B/api/people/photo?path=/solvay.jpg" | python3 -c "import sys,json;n=[p['name'] for p in json.load(sys.stdin)['people']];print('Pat Example' in n and 'Sam Example' in n)")" True
+  chk "people: a photo with no faces lists no one" "$($C "$B/api/people/photo?path=/nothing.jpg" | grep -c '"people":\[\]')" 1
+  chk "people: photo lookup needs a login" "$(code "$B/api/people/photo?path=/solvay.jpg")" 401
   chk "people: switch off and forget" "$(code -b $J -X POST -d '{"enable":false,"delete":true}' $B/api/smart/faces)" 200
   chk "people: faces folder and models are removed" "$([ -e "$T/store/users/admin/.search/faces" ] || [ -e "$T/home/models/faces" ] && echo present || echo gone)" gone
-  for f in einstein1 einstein2 turing curie; do $C -X POST -d "{\"path\":\"/$f.jpg\"}" $B/api/delete >/dev/null; done; $C -X POST -d '{}' $B/api/trash/empty >/dev/null
+  for f in einstein1 einstein2 turing curie solvay; do $C -X POST -d "{\"path\":\"/$f.jpg\"}" $B/api/delete >/dev/null; done; $C -X POST -d '{}' $B/api/trash/empty >/dev/null
 fi
 
 # --- health monitor ---

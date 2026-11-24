@@ -108,6 +108,7 @@ func New(st *config.Store, version string, port int) *Server {
 	m.HandleFunc("/api/smart/faces", s.adminOnly(s.smartFaces))
 	m.HandleFunc("/api/people", s.authed(s.peopleList))
 	m.HandleFunc("/api/people/photos", s.authed(s.peoplePhotos))
+	m.HandleFunc("/api/people/photo", s.authed(s.peopleInPhoto))
 	m.HandleFunc("/api/people/edit", s.authed(s.peopleEdit))
 	m.HandleFunc("/api/face", s.authed(s.faceImage))
 	m.HandleFunc("/api/smart/enable", s.adminOnly(s.smartEnable))
