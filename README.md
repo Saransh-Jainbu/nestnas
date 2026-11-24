@@ -16,6 +16,9 @@ Website: <https://nestnas.vercel.app> (its source is in [`site/`](site/)).
 |---|---|
 | **Space allowance** | Files live in a normal folder; NestNAS enforces a per-user quota (no partitioning, no root) |
 | **Web file manager** | Upload (drag and drop, progress), resumable download, folders, rename, zip a whole folder |
+| **Search** | Find files by name and by words inside text files. With **smart photo search** switched on, find photos by what they show ("beach at sunset", "birthday cake") using a small AI model that runs on your computer |
+| **People** | Optional face recognition: photos are grouped by person, you name each group, and searching a name finds that person's photos |
+| **Select several** | Tick files in the list or gallery (shift-click for a range, a heading's box for a whole date group), then download them as one zip or move them to the trash. Files can be grouped by date: Today, Yesterday, Previous 7 days, then by month |
 | **Preview and gallery** | Open photos, videos, audio, PDFs and text inside NestNAS: thumbnails, full-screen viewer, swipe/arrow keys, video seeking. Never cached by the browser. HTML/SVG are never previewed (they can run script) |
 | **Phone/computer backup** | The **Backup** tab copies photos, videos or a folder to the NAS over Wi-Fi. Safe to repeat: skips what's already there, never overwrites or deletes, keeps each photo's date, saves under `Phone Backup/<device>/<year>/<month>`, retries bad Wi-Fi. |
 | **Encrypted at rest** | One switch in Security: file contents are AES-256-GCM encrypted on the drive, and the app opens them as normal. Turning it off decrypts everything back to ordinary files |
@@ -119,8 +122,21 @@ Pick it in the setup page: **Choose folder…** lists your drives with free spac
 - Tested against GNOME's real WebDAV client (mount, list, create, copy in and out, read back). macOS Finder and Windows are expected to work but **haven't been tested on real devices yet**.
 - Deleting over WebDAV goes to the trash. Locks are accepted but not enforced (enough for Finder to write).
 
+## Smart search and people (optional, runs on your computer)
+
+Both are off until an admin switches them on in the **Search** tab. Nothing is sent anywhere: the models run inside NestNAS (pure Go, no extra software), photos are analysed in the background, and the results are stored in your own folder (`.search/`), encrypted when you use encryption. The only network use is the one-time model download, checked against pinned SHA-256 checksums:
+
+| Feature | Model | Size | Licence |
+|---|---|---|---|
+| Photo search | TinyCLIP (Standard, or a smaller one) from Hugging Face | 337 MB / 94 MB | MIT |
+| Faces: finding | YuNet from the OpenCV model zoo | 0.2 MB | MIT |
+| Faces: telling people apart | SFace from the OpenCV model zoo | 39 MB | Apache-2.0 |
+
+The first pass over a library is slow (roughly one photo per second, using a share of your processor) and then only new photos are processed. Results are good, not perfect: photo search is weaker than the big cloud models, and face grouping can split one person in two or confuse look-alikes, children and profile views. Use **Merge** (give two groups the same name) and **This is not them** to correct it. Face data is biometric: it stays on your drive, and turning face recognition off deletes it.
+
 ## Known limitations
 
+- **Smart search and people** only read JPEG, PNG and GIF photos (not HEIC or WebP yet) and photos up to about 80 megapixels. Small faces in large group photos can be missed. The photo-search index belongs to one model: switching models re-indexes everything.
 - **Health monitor:** reads the system's own counters (Linux `/proc` and `/sys`); macOS and Windows show less. Most USB drives do not report their temperature or SMART data to the computer. To see them, install `smartmontools` and let NestNAS run `smartctl` on the drive (usually needs root or a sudo rule). Without it the monitor says so instead of guessing.
 
 - **Versions and snapshots** are not a backup of the drive: they live on the same drive as your files and count toward each person's allowance. On exFAT/FAT drives a snapshot stores real copies of changed files; on ext4, NTFS and APFS it shares disk blocks with the live files. A file that is renamed or moved starts a new version history, and a deleted file's older versions are removed when they age out.

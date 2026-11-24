@@ -50,6 +50,7 @@ type Server struct {
 	vault       *vault.Vault
 	conv        converter
 	mon         monitor
+	smart       smartState
 	convRunning int32
 	thumbs      *thumbCache
 	thumbSem    chan struct{}
@@ -76,6 +77,8 @@ func New(st *config.Store, version string, port int) *Server {
 	s.Mux = m
 	go s.snapshotLoop()
 	go s.monitorLoop()
+	s.smart.kick = make(chan struct{}, 1)
+	go s.smartLoop()
 
 	m.HandleFunc("/", s.index)
 	m.HandleFunc("/sites/", s.site)
@@ -99,6 +102,16 @@ func New(st *config.Store, version string, port int) *Server {
 	m.HandleFunc("/api/thumb", s.authed(s.thumb))
 	m.HandleFunc("/api/backup/check", s.authed(s.backupCheck))
 	m.HandleFunc("/api/zip", s.authed(s.zipFolder))
+	m.HandleFunc("/api/zipmany", s.authed(s.zipMany))
+	m.HandleFunc("/api/search", s.authed(s.searchAPI))
+	m.HandleFunc("/api/smart", s.authed(s.smartStatus))
+	m.HandleFunc("/api/smart/faces", s.adminOnly(s.smartFaces))
+	m.HandleFunc("/api/people", s.authed(s.peopleList))
+	m.HandleFunc("/api/people/photos", s.authed(s.peoplePhotos))
+	m.HandleFunc("/api/people/edit", s.authed(s.peopleEdit))
+	m.HandleFunc("/api/face", s.authed(s.faceImage))
+	m.HandleFunc("/api/smart/enable", s.adminOnly(s.smartEnable))
+	m.HandleFunc("/api/smart/disable", s.adminOnly(s.smartDisable))
 	m.HandleFunc("/api/monitor", s.adminOnly(s.monitorAPI))
 	m.HandleFunc("/api/versions", s.authed(s.versionsAPI))
 	m.HandleFunc("/api/versions/download", s.authed(s.versionDownload))
@@ -391,7 +404,7 @@ func (s *Server) authed(h userHandler) http.HandlerFunc {
 			jerr(w, 401, "login required")
 			return
 		}
-		if !s.storageOK() {
+		if !s.storageOK() && !storageExempt(r.URL.Path) {
 			jerr(w, 503, storageGoneMsg)
 			return
 		}
@@ -576,6 +589,10 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) me(w http.ResponseWriter, r *http.Request, u config.User) {
 	root, err := s.userRoot(u.Name)
+	if errors.Is(err, errNoStorage) { // drive unplugged: you can still sign in and see why nothing works
+		jsonOut(w, 200, map[string]interface{}{"name": u.Name, "admin": u.Admin, "quota": u.QuotaBytes, "used": 0, "storage_ok": false})
+		return
+	}
 	if err != nil {
 		jerr(w, 500, "storage error")
 		return

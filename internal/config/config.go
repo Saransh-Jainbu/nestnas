@@ -39,6 +39,8 @@ type Config struct {
 	Encrypted     bool    `json:"encrypted,omitempty"`      // contents are encrypted at rest (see internal/vault)
 	AutoUnlock    bool    `json:"auto_unlock,omitempty"`    // key kept on this computer so it unlocks itself on start
 	SnapshotsAuto bool    `json:"snapshots_auto,omitempty"` // take a snapshot of every user daily
+	FacesOn       bool    `json:"faces_on,omitempty"`       // recognise people in photos
+	SmartModel    string  `json:"smart_model,omitempty"`    // photo-search model that is switched on ("" = off)
 	Converting    string  `json:"converting,omitempty"`     // "encrypt" or "decrypt" while existing files are being converted
 	StorageSub    string  `json:"storage_sub,omitempty"`    // storage folder relative to its drive, to find it again after re-plugging
 	Users         []User  `json:"users"`
@@ -127,6 +129,32 @@ func (s *Store) SetSnapshotsAuto(on bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.c.SnapshotsAuto = on
+	return s.save()
+}
+
+func (s *Store) FacesOn() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.c.FacesOn
+}
+
+func (s *Store) SetFacesOn(on bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.c.FacesOn = on
+	return s.save()
+}
+
+func (s *Store) SmartModel() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.c.SmartModel
+}
+
+func (s *Store) SetSmartModel(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.c.SmartModel = id
 	return s.save()
 }
 

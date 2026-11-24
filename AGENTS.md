@@ -85,6 +85,19 @@ internal/web            index.html (the whole UI, one file) + icon, embedded wit
 - Everything is read from `/proc` and `/sys` (no dependencies); failures degrade to "not available". Drive temperature comes from the kernel's hwmon if the drive offers it, otherwise from `smartctl -j` if installed. Never claim a reading you don't have; most USB drives report neither.
 - `healthAlerts` holds the warning thresholds (drive full, hot, read-only, SMART failing, CPU hot, low battery); add a test in `monitor_test.go` when you change them.
 
+## Unplugged drive: sign-in must still work
+
+`storageExempt()` (vaultapi.go) lists the calls that work while the storage drive is missing (`/api/me`, `/api/system`, `/api/monitor`, `/api/vault`, `/api/password`); everything else returns 503. `me` answers with `storage_ok:false` instead of failing, and the dashboard shows a "drive not connected" screen for storage tabs while Settings, Security and Health keep working. Never make `/api/me` depend on the drive again: that made the dashboard fail to load after sign-in. `driveInfo` must report nothing for a missing drive (its path would otherwise map to the laptop's own disk).
+
+## Smart search and people (`internal/vision`, `smart.go`, `searchindex.go`, `search.go`, `people.go`)
+
+- `internal/vision` is a pure-Go inference engine, no dependencies: a CLIP model from a Hugging Face `safetensors` file (`clip.go`, tokenizer from `tokenizer.json`), and a small ONNX interpreter (`onnx.go`) that runs YuNet (detector) and SFace (recogniser). Both were verified against independent references (numpy for CLIP, onnxruntime and OpenCV for the face models); keep `NN_*` env tests working when you change numerics, and don't "optimise" the math without re-checking them.
+- Models are downloaded on opt-in into `<home>/models/<id>/`, pinned by SHA-256 and revision in `smart.go`. Never add a model without a pinned checksum, and keep licences permissive (MIT/Apache).
+- The indexer (`smartLoop`) decodes each photo once and feeds CLIP and the face pipeline. Results live in `<user>/.search/<model>/seg-*.bin` and `<user>/.search/faces/` (+ `people.json`), written through `newContentWriter` so encryption applies. `.search` is an internal folder (hidden from every path API). Face keys are `size-mtime-index`, so renaming or moving a photo keeps its people.
+- Photo search thresholds are per model (`Floor`/`Loose` in `clipModels`): similarity scales differ between models. Re-tune them when adding one.
+- Face grouping is greedy (`assignNew`, similarity to a person's average, `assignSim`); user edits (names, merge, "not this person", hide) are authoritative and stored in `people.json`.
+- The smoke tests for these need the models and sample photos locally (`SMOKE_SMART`/`SMOKE_PHOTOS`, `SMOKE_FACES`/`SMOKE_FACE_PHOTOS`); without them those sections are skipped.
+
 ## Storage drive safety
 
 `storageOK()` (server.go) checks `<storage>/users` exists **freshly on every request** and that `<storage>/.nestnas-id` matches `config.StorageID` (marker read cached 2s). If not, `tryRelocate` scans `placesFn()` drives for `<mount>/<StorageSub>/.nestnas-id` and updates the storage path, so a drive replugged at a different mount point resumes by itself. `authed`, WebDAV, share links and sites return 503 when storage is missing. **Never use `MkdirAll` on a path that includes the storage root** (`userRoot` and `mkdirChain` use per-component `os.Mkdir`), or a just-unplugged drive's empty mount point would be silently recreated on the internal disk. Tests: `storage_test.go` and the "drive gone / back / wrong drive" smoke checks. Drive discovery for the setup picker is `places.go`.

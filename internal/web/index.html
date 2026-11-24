@@ -169,6 +169,19 @@ main>*:nth-child(2){animation-delay:.05s}main>*:nth-child(3){animation-delay:.1s
 .drop .ic{width:18px;height:18px;color:var(--accent)}
 .drop.over{border-color:var(--accent);background:var(--tint);color:var(--accent)}
 #prog{margin:6px 2px 6px;font-size:13px;color:var(--mute);min-height:6px}
+.chk{width:22px;height:22px;border-radius:7px;border:1.6px solid var(--dim);background:rgba(5,8,12,.5);display:grid;place-items:center;padding:0;flex:none;cursor:pointer;color:transparent;opacity:0;transition:opacity .15s,background .15s;min-height:0}
+.chk .ic{width:14px;height:14px;stroke-width:2.6}
+.chk.on{background:var(--accent);border-color:var(--accent);color:var(--ink);opacity:1}
+.frow:hover .chk,.gcard:hover .chk,.selmode .chk,.chk:focus-visible,.ghead:hover .chk{opacity:1}
+@media (hover:none){.chk{opacity:1}}
+.gimg .chk{position:absolute;top:8px;left:8px;z-index:2}
+.frow.sel{background:var(--tint)}
+.gcard.sel{border-color:var(--accent)}.gcard.sel .gimg{box-shadow:inset 0 0 0 3px var(--accent)}
+.ghead{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:20px 12px 8px;font:500 13px var(--sans);color:var(--mute);letter-spacing:.02em}
+.ghead small{color:var(--dim);font-weight:400}
+.selbar{position:sticky;top:12px;z-index:6;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin:0 0 18px;border:1px solid var(--accent);border-radius:18px;background:var(--navbg);box-shadow:var(--shadow)}
+.selbar[hidden]{display:none}
+button.ghost.on{background:var(--tint);color:var(--accent);border-color:var(--accent)}
 .flist{margin-top:10px}
 .fhead,.frow{display:grid;grid-template-columns:minmax(0,1fr) 92px 130px 188px;gap:12px;align-items:center}
 .fhead{padding:8px 12px;font:500 10.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
@@ -331,7 +344,7 @@ const $app = document.getElementById("app");
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = n => { if (n < 1024) return n + " B"; const u = ["KB","MB","GB","TB"]; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return n.toFixed(n < 10 ? 1 : 0) + " " + u[i]; };
 const GB = 1073741824;
-const state = { me: null, tab: "files", path: "", sys: null, storageOk: true, lockedShown: false, encrypted: false, tls: false, view: (() => { try { return localStorage.getItem("nn_view") || "list"; } catch (e) { return "list"; } })() };
+const state = { me: null, tab: "files", path: "", sys: null, storageOk: true, lockedShown: false, person: null, showHidden: false, sel: new Set(), selPath: null, group: (() => { try { return localStorage.getItem("nn_group") !== "0"; } catch (e) { return true; } })(), encrypted: false, tls: false, view: (() => { try { return localStorage.getItem("nn_view") || "list"; } catch (e) { return "list"; } })() };
 
 /* ---------- icons (one consistent line style) ---------- */
 const ICONS = {
@@ -369,6 +382,10 @@ const ICONS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  check: '<path d="M5 12l5 5 9-10"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+  smile: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.2a4.2 4.2 0 007 0"/><circle cx="9" cy="9.6" r=".8" fill="currentColor"/><circle cx="15" cy="9.6" r=".8" fill="currentColor"/>',
   restore: '<path d="M4 12a8 8 0 108-8M4 4v5h5"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>',
   print: '<path d="M7 9V4h10v5M7 17H5a2 2 0 01-2-2v-4a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2h-2"/><rect x="7" y="14" width="10" height="6" rx="1"/>'
@@ -553,7 +570,7 @@ function pickFolder(start, onPick) {
 }
 
 /* ---------------- shell ---------------- */
-const TABS = [["files","Files",0,"folder"],["backup","Backup",0,"cloud"],["shares","Share links",0,"link"],["trash","Trash",0,"trash"],["snapshots","Snapshots",0,"clock"],["health","Health",1,"pulse"],["connect","Connect",1,"wifi"],["security","Security",1,"shield"],["apps","Apps",1,"apps"],["users","People",1,"users"],["account","Account",0,"user"]];
+const TABS = [["files","Files",0,"folder"],["search","Search",0,"search"],["people","People",0,"smile"],["backup","Backup",0,"cloud"],["shares","Share links",0,"link"],["trash","Trash",0,"trash"],["snapshots","Snapshots",0,"clock"],["health","Health",1,"pulse"],["connect","Connect",1,"wifi"],["security","Security",1,"shield"],["apps","Apps",1,"apps"],["users","Users",1,"users"],["account","Account",0,"user"]];
 const PRIMARY = ["files", "backup", "trash"]; // shown in the phone bottom bar; the rest are under "More"
 let storageTimer = null;
 // While the drive is missing, check every few seconds and carry on automatically when it returns.
@@ -573,11 +590,15 @@ function viewShell() {
     <div class="who"><span class="avatar">${esc(state.me.name.slice(0, 1))}</span><span class="nm">${esc(state.me.name)}</span><button class="ib" id="out" title="Log out" aria-label="Log out">${ico("logout")}</button></div></header>
     ${state.storageOk ? "" : `<div class="card" style="border-color:var(--bad);color:var(--bad);max-width:1040px;margin:16px auto 0;padding:16px 20px">${ico("drive")} Your storage drive isn't connected. Plug it back in and this page continues by itself. Nothing is being saved to this computer's own disk in the meantime.</div>`}
     <main id="main"></main>`;
-  document.querySelectorAll(".nv[data-t]").forEach(b => b.onclick = () => { state.tab = b.dataset.t; viewShell(); });
-  $("more").onclick = () => sheet("More", tabs.filter(t => !PRIMARY.includes(t[0])).map(t => ({ icon: t[3], label: t[1], run: () => { state.tab = t[0]; viewShell(); } })));
+  document.querySelectorAll(".nv[data-t]").forEach(b => b.onclick = () => { state.tab = b.dataset.t; state.person = null; viewShell(); });
+  $("more").onclick = () => sheet("More", tabs.filter(t => !PRIMARY.includes(t[0])).map(t => ({ icon: t[3], label: t[1], run: () => { state.tab = t[0]; state.person = null; viewShell(); } })));
   $("out").onclick = async () => { await api("/api/logout", { body: {} }); state.me = null; boot(); };
+  if (!state.storageOk && ["files", "search", "people", "backup", "shares", "trash", "snapshots", "users", "apps"].includes(state.tab)) {
+    $("main").innerHTML = `<div class="card" style="max-width:560px;margin:24px auto"><div class="empty" style="padding:30px 0">${NEST}<b>Your storage drive isn't connected</b><span>Plug it back in and this page continues by itself. Settings, Security and Health still work meanwhile.</span></div></div>`;
+    return;
+  }
   if (state.locked && ["backup", "trash"].includes(state.tab)) return unlockPanel();
-  ({ files: tabFiles, shares: tabShares, backup: tabBackup, trash: tabTrash, snapshots: tabSnapshots, health: tabHealth, connect: tabConnect, security: tabSecurity, apps: tabApps, users: tabUsers, account: tabAccount })[state.tab]();
+  ({ files: tabFiles, search: tabSearch, people: tabPeople, shares: tabShares, backup: tabBackup, trash: tabTrash, snapshots: tabSnapshots, health: tabHealth, connect: tabConnect, security: tabSecurity, apps: tabApps, users: tabUsers, account: tabAccount })[state.tab]();
 }
 
 /* A phone-style bottom sheet of big buttons (used for "More" and per-file actions). */
@@ -619,9 +640,9 @@ async function tabFiles() {
         <div class="chips">${state.encrypted ? `<span class="chip">${ico("lock")} Encrypted</span>` : ""}${state.tls ? `<span class="chip">${ico("shield")} HTTPS</span>` : ""}<span class="chip dim">${fmt(Math.max(0, quota - used))} free</span></div></div>
     </div>
     ${state.locked ? `<div class="card" style="border-color:var(--accent);padding:16px 20px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>${ico("lock")} Files are locked. Names are visible, but opening, previewing and uploading need your passphrase.</span><button id="ul" class="ghost">Unlock</button></div>` : ""}
-    <div class="card files"><div class="toolbar" style="margin-top:0"><div class="crumbs" id="crumbs"></div>
+    <div class="card files" id="fcard"><div class="selbar" id="selbar" hidden><button class="ib" id="sx" aria-label="Clear selection">${ico("x")}</button><b id="sc"></b><span style="flex:1"></span><button class="ghost" id="sa">Select all</button><button class="ghost" id="sd">${ico("download")} Download</button><button class="danger" id="sr">${ico("trash")} Move to trash</button></div><div class="toolbar" style="margin-top:0"><div class="crumbs" id="crumbs"></div>
       <span class="seg"><button id="vl" title="List view" aria-label="List view">${ico("list")}</button><button id="vg" title="Photo gallery" aria-label="Photo gallery">${ico("gridview")}</button></span>
-      <button class="ghost" id="mk">${ico("plus")} New folder</button><button id="up">${ico("upload")} Upload</button><input type="file" id="file" multiple hidden></div>
+      <button class="ghost ${state.group ? "on" : ""}" id="grp" title="Group by date" aria-pressed="${state.group}">${ico("calendar")} By date</button><button class="ghost" id="mk">${ico("plus")} New folder</button><button id="up">${ico("upload")} Upload</button><input type="file" id="file" multiple hidden></div>
     <div class="drop" id="drop">${ico("upload")} Drop files here to upload</div><div id="prog"></div>
     <div class="flist" id="tbl"><div class="fhead mono"><span>Name</span><span class="h-sz">Size</span><span class="h-dt">Modified</span><span></span></div><div id="rows"></div></div><div class="gal" id="gal" hidden></div></div>`;
   const parts = state.path.split("/").filter(Boolean);
@@ -653,29 +674,85 @@ async function tabFiles() {
   const gallery = state.view === "gallery";
   $("vl").classList.toggle("on", !gallery); $("vg").classList.toggle("on", gallery);
   $("tbl").hidden = gallery; gal.hidden = !gallery;
+  // ----- selection, and grouping by date -----
+  if (state.selPath !== state.path) { state.sel.clear(); state.selPath = state.path; }
+  const key = it => fp(it);
+  const present = new Set(data.items.map(key)); state.sel = new Set([...state.sel].filter(k => present.has(k)));
+  const groups = buildGroups(data.items, state.group);
+  const order = groups.reduce((a, g) => a.concat(g.items), []);
+  const els = new Map(), heads = [];
+  let lastIdx = -1;
+  const setSel = (it, on) => { if (on) state.sel.add(key(it)); else state.sel.delete(key(it)); };
+  const refreshSel = () => {
+    const n = state.sel.size;
+    $("fcard").classList.toggle("selmode", n > 0);
+    $("selbar").hidden = n === 0;
+    $("sc").textContent = n + " selected";
+    $("sa").textContent = n === order.length ? "Clear all" : "Select all";
+    els.forEach((el, k) => { const on = state.sel.has(k); el.classList.toggle("sel", on); const b = el.querySelector(".chk"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+    heads.forEach(h => { const on = h.g.items.length > 0 && h.g.items.every(i => state.sel.has(key(i))); h.b.classList.toggle("on", on); });
+  };
+  const toggle = (it, shift) => {
+    const i = order.indexOf(it);
+    if (shift && lastIdx >= 0) { const on = !state.sel.has(key(it)); for (let k = Math.min(i, lastIdx); k <= Math.max(i, lastIdx); k++) setSel(order[k], on); }
+    else setSel(it, !state.sel.has(key(it)));
+    lastIdx = i; refreshSel();
+  };
+  const clickIt = (it, ev) => { if (state.sel.size || ev.shiftKey || ev.ctrlKey || ev.metaKey) { ev.preventDefault(); toggle(it, ev.shiftKey); } else openIt(it); };
+  const chkHTML = it => `<button class="chk" type="button" aria-label="Select ${esc(it.name)}">${ico("check")}</button>`;
+  const wire = (el, it) => { els.set(key(it), el); el.querySelector(".chk").onclick = ev => { ev.stopPropagation(); toggle(it, ev.shiftKey); }; };
+  const addHead = (container, g) => {
+    if (!g.title) return;
+    const h = document.createElement("div"); h.className = "ghead";
+    h.innerHTML = `<button class="chk" type="button" aria-label="Select everything under ${esc(g.title)}">${ico("check")}</button><span>${esc(g.title)}</span><small>${g.items.length}</small>`;
+    const b = h.querySelector(".chk"); heads.push({ g, b });
+    b.onclick = () => { const on = !g.items.every(i => state.sel.has(key(i))); g.items.forEach(i => setSel(i, on)); refreshSel(); };
+    container.appendChild(h);
+  };
+  const selAll = () => { const all = state.sel.size === order.length; order.forEach(i => setSel(i, !all)); refreshSel(); };
+  $("sx").onclick = () => { state.sel.clear(); refreshSel(); };
+  $("sa").onclick = selAll;
+  $("sd").onclick = () => {
+    const paths = [...state.sel];
+    if (paths.length === 1 && !order.find(i => key(i) === paths[0]).dir) location.href = "/api/download?path=" + encodeURIComponent(paths[0]);
+    else { const f = document.createElement("form"); f.method = "POST"; f.action = "/api/zipmany"; f.style.display = "none"; paths.forEach(p => { const i = document.createElement("input"); i.type = "hidden"; i.name = "path"; i.value = p; f.appendChild(i); }); document.body.appendChild(f); f.submit(); f.remove(); }
+  };
+  $("sr").onclick = guard(async () => {
+    const paths = [...state.sel]; if (!paths.length || !confirm(`Move ${paths.length} item${paths.length > 1 ? "s" : ""} to the trash? You can restore them later.`)) return;
+    let failed = 0; for (const p of paths) { try { await api("/api/delete", { body: { path: p } }); } catch (e) { failed++; } }
+    state.sel.clear(); if (failed) toast(`${failed} could not be moved`); tabFiles();
+  });
+  $("grp").onclick = () => { state.group = !state.group; try { localStorage.setItem("nn_group", state.group ? "1" : "0"); } catch (e) {} tabFiles(); };
+  state.selApi = { refresh: refreshSel, all: selAll };
+  if (!window.__selKeys) { window.__selKeys = true; document.addEventListener("keydown", e => {
+    if (state.tab !== "files" || !state.selApi || document.querySelector(".viewer") || e.target.closest("input,textarea")) return;
+    if (e.key === "Escape" && state.sel.size) { state.sel.clear(); state.selApi.refresh(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") { e.preventDefault(); state.selApi.all(); }
+  }); }
   const emptyHTML = `<div class="empty">${NEST}<b>${state.path ? "This folder is empty" : "No files yet"}</b><span>Upload files, or back up a device from the Backup tab.</span></div>`;
   if (!data.items.length) { rows.innerHTML = emptyHTML; gal.innerHTML = emptyHTML; }
   if (gallery) {
-    data.items.forEach(it => {
+    groups.forEach(g => { addHead(gal, g); g.items.forEach(it => {
       const c = document.createElement("div"); c.className = "gcard";
       const fallback = `<span class="gico k-${iconKind(it)}">${ico(iconKind(it))}</span>`;
-      c.innerHTML = `<div class="gimg">${hasThumb(it) ? `<img loading="lazy" alt="" src="${thumb(it, 320)}">` : fallback}</div><div class="gname">${esc(it.name)}</div>`;
-      const img = c.querySelector("img"); if (img) img.onerror = () => { c.querySelector(".gimg").innerHTML = fallback; };
-      c.onclick = () => openIt(it); gal.appendChild(c);
-    });
+      c.innerHTML = `<div class="gimg">${chkHTML(it)}${hasThumb(it) ? `<img loading="lazy" alt="" src="${thumb(it, 320)}">` : fallback}</div><div class="gname">${esc(it.name)}</div>`;
+      const img = c.querySelector("img"); if (img) img.onerror = () => { img.remove(); c.querySelector(".gimg").insertAdjacentHTML("beforeend", fallback); };
+      c.onclick = ev => clickIt(it, ev); gal.appendChild(c); wire(c, it);
+    }); });
+    refreshSel();
     return;
   }
-  data.items.forEach(it => {
+  groups.forEach(g => { addHead(rows, g); g.items.forEach(it => {
     const full = fp(it), kind = iconKind(it);
     const row = document.createElement("div"); row.className = "frow";
     const canView = !it.dir && kindOf(it.name);
     const when = new Date(it.mtime * 1000);
     const tile = hasThumb(it) ? `<span class="ft"><img loading="lazy" alt="" src="${thumb(it, 96)}"></span>` : `<span class="ft k-${kind}">${ico(kind)}</span>`;
-    row.innerHTML = `<div class="fn" tabindex="0" role="button">${tile}<div class="ftx"><b>${esc(it.name)}</b><small>${it.dir ? "Folder" : fmt(it.size)} · ${when.toLocaleDateString()}</small></div></div>
+    row.innerHTML = `<div class="fn" tabindex="0" role="button">${chkHTML(it)}${tile}<div class="ftx"><b>${esc(it.name)}</b><small>${it.dir ? "Folder" : fmt(it.size)} · ${when.toLocaleDateString()}</small></div></div>
       <span class="fsz">${it.dir ? "" : fmt(it.size)}</span><span class="fdt">${when.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
       <div class="acts">${canView ? `<button class="ib" data-a="view" title="View" aria-label="View">${ico("eye")}</button>` : ""}${it.dir ? `<button class="ib" data-a="zip" title="Download as zip" aria-label="Download as zip">${ico("archive")}</button>` : `<button class="ib" data-a="dl" title="Download" aria-label="Download">${ico("download")}</button><button class="ib" data-a="ver" title="Version history" aria-label="Version history">${ico("clock")}</button><button class="ib" data-a="sh" title="Share link" aria-label="Share link">${ico("link")}</button>`}<button class="ib" data-a="rn" title="Rename" aria-label="Rename">${ico("edit")}</button><button class="ib bad" data-a="rm" title="Move to trash" aria-label="Move to trash">${ico("trash")}</button><button class="ib morerow" aria-label="Actions for ${esc(it.name)}">${ico("more")}</button></div>`;
     const th = row.querySelector(".ft img"); if (th) th.onerror = () => { const t = th.parentElement; t.classList.add("k-" + kind); t.innerHTML = ico(kind); };
-    const fn = row.querySelector(".fn"); fn.onclick = () => openIt(it); fn.onkeydown = e => { if (e.key === "Enter") openIt(it); };
+    const fn = row.querySelector(".fn"); fn.onclick = ev => clickIt(it, ev); fn.onkeydown = e => { if (e.key === "Enter") clickIt(it, e); else if (e.key === " ") { e.preventDefault(); toggle(it, e.shiftKey); } };
     const act = guard(async (a) => {
       if (a === "view") openIt(it);
       if (a === "zip") location.href = "/api/zip?path=" + encodeURIComponent(full);
@@ -696,8 +773,20 @@ async function tabFiles() {
       items.push({ icon: "trash", label: "Move to trash", danger: true, run: () => act("rm") });
       sheet(it.name, items);
     };
-    rows.appendChild(row);
-  });
+    rows.appendChild(row); wire(row, it);
+  }); });
+  refreshSel();
+}
+
+// Group files like Google Drive/Photos: folders first, then by how recently they changed.
+function buildGroups(items, group) {
+  if (!group) return [{ title: null, items }];
+  const out = [], folders = items.filter(i => i.dir), files = items.filter(i => !i.dir).sort((a, b) => b.mtime - a.mtime);
+  if (folders.length) out.push({ title: "Folders", items: folders });
+  const n = new Date(), sod = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime() / 1000;
+  const label = t => t >= sod ? "Today" : t >= sod - 86400 ? "Yesterday" : t >= sod - 7 * 86400 ? "Previous 7 days" : t >= sod - 30 * 86400 ? "Previous 30 days" : new Date(t * 1000).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  files.forEach(f => { const l = label(f.mtime), last = out[out.length - 1]; if (last && last.title === l) last.items.push(f); else out.push({ title: l, items: [f] }); });
+  return out;
 }
 
 // Full-screen viewer: images, video, audio, PDFs and text, with ← → keys and swipe between files.
@@ -1014,6 +1103,124 @@ async function tabHealth() {
   tick();
 }
 
+/* ---------------- Search ---------------- */
+const mb = b => (b / 1e6).toFixed(b > 5e8 ? 0 : 1) + " MB";
+async function tabSearch() {
+  const m = $("main");
+  m.innerHTML = head("02", "Find", "", "Search", "Search by file name, by words inside text files, and, once smart search is on, by what a photo shows.") + `
+    <form class="card" id="sf" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input id="sq" placeholder="Try: invoice, birthday cake, beach at sunset, report 2024" style="flex:1;min-width:220px" autocomplete="off" value="${esc(state.q || "")}"><button id="sgo">${ico("search")} Search</button></form>
+    <div id="smart"></div><div id="sres"></div>`;
+  const smartCard = async () => {
+    if (state.tab !== "search" || !$("smart")) return;
+    let d; try { d = await api("/api/smart"); } catch (e) { return; }
+    state.smartOn = d.enabled && d.ready;
+    const el = $("smart"); if (!el) return;
+    const cur = d.models.find(x => x.id === d.model);
+    let html = "";
+    if (!d.available) html = "";
+    else if (!d.enabled) {
+      html = state.me.admin ? `<div class="card">${cardHead("search", `Smart <em>photo search</em>`, `<span class="pill bad">Off</span>`)}
+        <p class="small">Find photos by what is in them, such as "dog on a beach" or "birthday cake". It runs entirely on this computer: a small AI model is downloaded once from huggingface.co, then your photos are described in the background and never leave this machine.</p>
+        <div style="display:grid;gap:10px;margin:12px 0">${d.models.map((x, i) => `<label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;font:inherit;text-transform:none;letter-spacing:0;color:var(--text)"><input type="radio" name="sm" value="${x.id}" ${i === 0 ? "checked" : ""} style="margin-top:4px;width:auto"><span><b>${esc(x.name)}</b> · ${mb(x.bytes)}<br><span class="small mute" style="text-transform:none;letter-spacing:0;font-family:var(--sans)">${esc(x.note)}</span></span></label>`).join("")}</div>
+        <div class="toolbar"><button id="son">Turn on smart search</button></div>
+        <p class="small mute">It uses some processor time while it goes through your photos for the first time (a few photos per second), then only for new ones. Photo and face information is stored with your files and is encrypted if you use encryption.</p></div>`
+        : `<div class="card">${cardHead("search", `Smart <em>photo search</em>`, `<span class="pill bad">Off</span>`)}<p class="small mute">Ask an admin to turn on smart photo search in this tab.</p></div>`;
+    } else if (!d.ready) {
+      const p = d.download.total ? Math.round(100 * d.download.done / d.download.total) : 0;
+      html = `<div class="card">${cardHead("search", `Smart <em>photo search</em>`, `<span class="pill ok">${d.download.running ? "Downloading" : "Waiting"}</span>`)}
+        ${d.download.running ? `<p class="small">Downloading the search model: ${mb(d.download.done)} of ${mb(d.download.total)} (${p}%).</p><div class="bar"><div style="width:${p}%"></div></div>`
+          : `<p class="small" style="color:var(--bad)">${esc(d.download.error || "The model is not downloaded yet.")}</p>${state.me.admin ? `<div class="toolbar"><button id="sretry">Try again</button><button class="ghost" id="soff">Turn off</button></div>` : ""}`}</div>`;
+    } else {
+      const ix = d.index, p = ix.total ? Math.round(100 * ix.done / ix.total) : 100;
+      const status = ix.paused ? `Paused (${ix.paused === "locked" ? "files are locked" : "converting files"})` : ix.running ? `Getting to know your photos: ${ix.done} of ${ix.total}` : `Ready · ${ix.total} photos searchable`;
+      html = `<div class="card">${cardHead("search", `Smart <em>photo search</em>`, `<span class="pill ok">On</span>`)}
+        <p class="small">${esc(status)}${cur ? ` · ${esc(cur.name)} model` : ""}</p>${ix.running ? `<div class="bar"><div style="width:${p}%"></div></div>` : ""}
+        ${state.me.admin ? `<div class="toolbar"><button class="ghost" id="soff">Turn off</button></div>` : ""}</div>`;
+    }
+    if (d.available) {
+      const f = d.faces;
+      html += !f.enabled ? (state.me.admin ? `<div class="card">${cardHead("smile", `Recognise <em>people</em>`, `<span class="pill bad">Off</span>`)}
+        <p class="small">Finds faces in your photos and groups them by person, so you can name them and open every photo of someone. A small face model (${mb(f.bytes)}) is downloaded once; faces are analysed on this computer and the results stay in your own folder (encrypted if you use encryption).</p>
+        <div class="toolbar"><button id="fon">Turn on face recognition</button></div></div>` : "")
+        : !f.ready ? `<div class="card">${cardHead("smile", `Recognise <em>people</em>`, `<span class="pill ok">${d.download.running ? "Downloading" : "Waiting"}</span>`)}<p class="small">${d.download.running ? `Downloading the face model: ${mb(d.download.done)} of ${mb(d.download.total)}.` : esc(d.download.error || "The face model is not downloaded yet.")}</p>${state.me.admin ? `<div class="toolbar"><button class="ghost" id="foff">Turn off</button></div>` : ""}</div>`
+        : `<div class="card">${cardHead("smile", `Recognise <em>people</em>`, `<span class="pill ok">On</span>`)}<p class="small">${d.index.running ? `Looking at your photos: ${d.index.done} of ${d.index.total}. ` : ""}Open the People tab to name the people it found.</p><div class="toolbar"><button class="ghost" id="fgo">${ico("smile")} Open People</button>${state.me.admin ? `<button class="ghost" id="foff">Turn off</button>` : ""}</div></div>`;
+    }
+    el.innerHTML = html;
+    const fon = $("fon"); if (fon) fon.onclick = guard(async () => { await api("/api/smart/faces", { body: { enable: true } }); smartCard(); });
+    const foff = $("foff"); if (foff) foff.onclick = guard(async () => { if (confirm("Turn off face recognition? The face model, the groups and every name you gave will be deleted.")) { await api("/api/smart/faces", { body: { enable: false, delete: true } }); smartCard(); } });
+    const fgo = $("fgo"); if (fgo) fgo.onclick = () => { state.tab = "people"; viewShell(); };
+    const on = $("son"); if (on) on.onclick = guard(async () => { await api("/api/smart/enable", { body: { model: document.querySelector("input[name=sm]:checked").value } }); smartCard(); });
+    const rt = $("sretry"); if (rt) rt.onclick = guard(async () => { await api("/api/smart/enable", { body: { model: d.model } }); smartCard(); });
+    const off = $("soff"); if (off) off.onclick = guard(async () => { if (confirm("Turn off smart search? The downloaded model and the photo index will be deleted. You can turn it on again later.")) { await api("/api/smart/disable", { body: { delete: true } }); smartCard(); } });
+    if ((d.enabled && (!d.ready ? d.download.running : d.index.running)) || d.download.running || (d.faces.enabled && d.index.running)) setTimeout(smartCard, 2000);
+  };
+  smartCard();
+  const run = guard(async (loose) => {
+    const q = $("sq").value.trim(); if (!q) return; state.q = q;
+    $("sres").innerHTML = `<p class="mute" style="padding:18px 6px">Searching…</p>`;
+    const d = await api("/api/search?q=" + encodeURIComponent(q) + (loose ? "&loose=1" : ""));
+    const photos = d.photos.map(p => ({ name: p.name, path: p.path, kind: "image" }));
+    let html = "";
+    if (d.smart_error) html += `<p class="small mute" style="padding:6px">${esc(d.smart_error)}</p>`;
+    if (d.people && d.people.length) html += `<div class="ghead" style="padding-left:6px"><span>People</span><small>${d.people.length}</small></div><div class="gal" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">${d.people.map(p => `<div class="gcard" data-pp="${esc(p.id)}" style="text-align:center;padding:12px"><img alt="" src="/api/face?key=${encodeURIComponent(p.cover)}" style="width:84px;height:84px;border-radius:50%;object-fit:cover;margin:0 auto"><div class="gname" style="padding-top:8px"><b>${esc(p.name)}</b><br><span class="small mute">${p.photos} photos</span></div></div>`).join("")}</div>`;
+    if (d.photos.length) html += `<div class="ghead" style="padding-left:6px"><span>Photos</span><small>${d.photos.length}</small></div><div class="gal" id="sphotos">${d.photos.map((p, i) => `<div class="gcard" data-i="${i}"><div class="gimg"><img loading="lazy" alt="" src="/api/thumb?path=${encodeURIComponent(p.path)}&w=320"></div><div class="gname">${esc(p.name)}</div></div>`).join("")}</div>`;
+    if (state.smartOn && !loose) html += `<div class="toolbar"><button class="ghost" id="smore">Show more photos</button></div>`;
+    if (d.files.length) html += `<div class="ghead" style="padding-left:6px"><span>Files and folders</span><small>${d.files.length}</small></div><div class="card" style="padding:6px 10px">${d.files.map((f, i) => `<div class="trow" data-f="${i}" style="cursor:pointer;border-top:${i ? "1px" : "0"} solid var(--line)"><div><b style="display:flex;align-items:center;gap:8px">${ico(f.dir ? "folder" : iconKind(f))} ${esc(f.name)}</b><span>${esc(f.path.slice(0, f.path.lastIndexOf("/")) || "/")}${f.dir ? "" : " · " + fmt(f.size)}</span></div></div>`).join("")}</div>`;
+    if (d.text.length) html += `<div class="ghead" style="padding-left:6px"><span>Inside files</span><small>${d.text.length}</small></div><div class="card" style="padding:6px 10px">${d.text.map((f, i) => `<div class="trow" data-t="${i}" style="cursor:pointer;border-top:${i ? "1px" : "0"} solid var(--line)"><div><b>${esc(f.name)}</b><span>${esc(f.snippet)}</span></div></div>`).join("")}</div>`;
+    if (!html.trim() || (!d.photos.length && !d.files.length && !d.text.length && !(d.people && d.people.length))) html += `<div class="empty">${NEST}<b>Nothing found for "${esc(q)}"</b><span>${state.smartOn ? "Try different words." : "Turn on smart search above to find photos by what they show."}</span></div>`;
+    $("sres").innerHTML = html;
+    $("sres").querySelectorAll("[data-pp]").forEach(c => c.onclick = () => { state.person = c.dataset.pp; state.tab = "people"; viewShell(); });
+    $("sres").querySelectorAll("[data-i]").forEach(c => c.onclick = () => openViewer(photos, +c.dataset.i));
+    const goto = f => { const dir = f.dir ? f.path : f.path.slice(0, f.path.lastIndexOf("/")); state.path = dir; state.sel.clear(); state.tab = "files"; viewShell(); };
+    $("sres").querySelectorAll("[data-f]").forEach(r => r.onclick = () => goto(d.files[+r.dataset.f]));
+    $("sres").querySelectorAll("[data-t]").forEach(r => r.onclick = () => goto(d.text[+r.dataset.t]));
+    const more = $("smore"); if (more) more.onclick = () => run(true);
+  });
+  $("sf").onsubmit = e => { e.preventDefault(); run(false); };
+  if (state.q) run(false);
+}
+
+/* ---------------- People (faces) ---------------- */
+async function tabPeople() {
+  const m = $("main");
+  if (state.person) return personView(state.person);
+  const d = await api("/api/people" + (state.showHidden ? "?hidden=1" : ""));
+  const face = k => `<img alt="" loading="lazy" src="/api/face?key=${encodeURIComponent(k)}" style="width:100%;aspect-ratio:1;border-radius:50%;object-fit:cover;display:block">`;
+  m.innerHTML = head("03", "Photos", "", "People", "People found in your photos, grouped by face. Give a group a name to find every photo of that person; give two groups the same name to join them.") + (!d.enabled ? `<div class="card"><div class="empty" style="padding:30px 0">${NEST}<b>Face recognition is off</b><span>${state.me.admin ? "Turn it on from the Search tab." : "Ask an admin to turn it on."}</span></div></div>`
+    : !d.ready ? `<div class="card"><p class="mute">The face model is still downloading. See the Search tab.</p></div>`
+    : !d.people.length ? `<div class="card"><div class="empty" style="padding:30px 0">${NEST}<b>No faces yet</b><span>Photos are checked in the background. Faces appear here as they are found.</span></div></div>`
+    : `<div class="toolbar" style="margin:0 0 6px"><span style="flex:1"></span><button class="ghost ${state.showHidden ? "on" : ""}" id="ph">Show hidden</button></div>
+    <div class="gal" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${d.people.map(p => `<div class="gcard" data-p="${esc(p.id)}" style="padding:14px;text-align:center;${p.hidden ? "opacity:.5" : ""}"><div style="width:100%;max-width:112px;margin:0 auto">${face(p.cover)}</div><div class="gname" style="padding-top:10px"><b>${p.name ? esc(p.name) : "<span class=mute>Add a name</span>"}</b><br><span class="small mute">${p.photos} photo${p.photos === 1 ? "" : "s"}</span></div></div>`).join("")}</div>`);
+  m.querySelectorAll("[data-p]").forEach(c => c.onclick = () => { state.person = c.dataset.p; tabPeople(); });
+  const ph = $("ph"); if (ph) ph.onclick = () => { state.showHidden = !state.showHidden; tabPeople(); };
+}
+
+async function personView(id) {
+  const m = $("main");
+  let d, all;
+  try { d = await api("/api/people/photos?id=" + encodeURIComponent(id)); all = await api("/api/people?hidden=1"); } catch (e) { state.person = null; return tabPeople(); }
+  const photos = d.photos.map(p => ({ name: p.name, path: p.path, kind: "image" }));
+  m.innerHTML = head("03", "Photos", "", d.name || "Unnamed person", `${d.photos.length} photo${d.photos.length === 1 ? "" : "s"}${d.hidden ? " · hidden" : ""}`) + `
+    <div class="toolbar" style="margin:0 0 14px"><button class="ghost" id="pb">${ico("chev").replace("<svg ", '<svg style="transform:scaleX(-1)" ')} All people</button><span style="flex:1"></span>
+      <button class="ghost" id="pn">${ico("edit")} ${d.name ? "Rename" : "Add a name"}</button><button class="ghost" id="pm">Merge into…</button><button class="ghost" id="ph2">${d.hidden ? "Show" : "Hide"}</button></div>
+    <div class="gal">${d.photos.map((p, i) => `<div class="gcard" data-i="${i}"><div class="gimg"><img loading="lazy" alt="" src="/api/thumb?path=${encodeURIComponent(p.path)}&w=320"><button class="ib" data-x="${i}" title="This is not ${esc(d.name || "this person")}" aria-label="Not this person" style="position:absolute;top:8px;right:8px;z-index:2;background:rgba(5,8,12,.7);width:34px;height:34px">${ico("x")}</button></div><div class="gname">${esc(p.name)}</div></div>`).join("")}</div>`;
+  $("pb").onclick = () => { state.person = null; tabPeople(); };
+  const edit = op => guard(async (extra) => { const r = await api("/api/people/edit", { body: Object.assign({ op, id }, extra) }); return r; });
+  $("pn").onclick = guard(async () => {
+    const n = prompt("Name (use the same name as another group to join them)", d.name || ""); if (n === null) return;
+    const r = await api("/api/people/edit", { body: { op: "rename", id, name: n } });
+    if (r.merged_into) state.person = r.merged_into; personView(state.person);
+  });
+  $("pm").onclick = () => {
+    const others = all.people.filter(p => p.id !== id);
+    if (!others.length) { toast("There is no one else to merge with"); return; }
+    sheet("Merge into", others.slice(0, 30).map(p => ({ icon: "smile", label: (p.name || "Unnamed") + ` (${p.photos})`, run: guard(async () => { await api("/api/people/edit", { body: { op: "merge", id, to: p.id } }); state.person = p.id; personView(p.id); }) })));
+  };
+  $("ph2").onclick = guard(async () => { await api("/api/people/edit", { body: { op: "hide", id, hidden: !d.hidden } }); if (!d.hidden) { state.person = null; tabPeople(); } else personView(id); });
+  m.querySelectorAll("[data-i]").forEach(c => c.onclick = () => openViewer(photos, +c.dataset.i));
+  m.querySelectorAll("[data-x]").forEach(b => b.onclick = guard(async ev => { ev.stopPropagation(); const p = d.photos[+b.dataset.x]; if (confirm("Remove this photo from " + (d.name || "this person") + "?")) { await api("/api/people/edit", { body: { op: "notthis", id, face: p.face } }); personView(id); } }));
+}
+
 /* ---------------- Trash ---------------- */
 async function tabTrash() {
   const m = $("main"); const d = await api("/api/trash");
@@ -1167,7 +1374,7 @@ async function tabApps() {
 /* ---------------- People ---------------- */
 async function tabUsers() {
   const m = $("main"); const d = await api("/api/users");
-  m.innerHTML = head("08", "Administration", "", "People", "Each person has a private folder and a storage limit.") + `<div class="card">
+  m.innerHTML = head("08", "Administration", "", "Users", "Each person has a private folder and a storage limit.") + `<div class="card">
   <div class="tscroll"><table><thead><tr><th>Person</th><th>Used</th><th>Allowance (GB)</th><th></th></tr></thead><tbody>${d.users.map(u => `<tr><td><span class="ttl"><span class="avatar">${esc(u.name.slice(0, 1))}</span>${esc(u.name)} ${u.admin ? '<span class="pill">admin</span>' : ""}</span></td><td class="mute mono small">${fmt(u.used)}</td>
     <td><input type="number" min="1" step="1" value="${Math.round(u.quota / GB * 10) / 10}" data-q="${esc(u.name)}" style="width:100px;padding:8px 12px"></td>
     <td class="actions">${u.name === state.me.name ? "" : `<button class="danger" data-d="${esc(u.name)}">Delete</button>`}</td></tr>`).join("")}</tbody></table></div></div>

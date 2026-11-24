@@ -238,26 +238,39 @@ func (s *Server) zipFolder(w http.ResponseWriter, r *http.Request, u config.User
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.zip"`)
 	zw := zip.NewWriter(w)
 	defer zw.Close()
-	_ = filepath.WalkDir(abs, func(p string, d os.DirEntry, err error) error {
-		if err != nil || p == abs {
+	s.zipTree(zw, root, abs, "")
+}
+
+// zipTree adds start (a file or a folder) to the archive under name. A folder's contents land
+// under name/; an empty name puts the contents at the top level of the archive.
+func (s *Server) zipTree(zw *zip.Writer, root, start, name string) {
+	_ = filepath.WalkDir(start, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
 			return nil
 		}
 		if d.IsDir() && filepath.Dir(p) == root && internalName(d.Name()) {
 			return filepath.SkipDir
 		}
-		if d.Type()&os.ModeSymlink != 0 || strings.HasSuffix(d.Name(), ".part") && strings.HasPrefix(d.Name(), ".") {
+		if p != start && (d.Type()&os.ModeSymlink != 0 || strings.HasSuffix(d.Name(), ".part") && strings.HasPrefix(d.Name(), ".")) {
 			return nil
 		}
 		info, err := d.Info()
 		if err != nil {
 			return nil
 		}
-		rel, _ := filepath.Rel(abs, p)
+		rel, _ := filepath.Rel(start, p)
+		entry := path.Join(name, filepath.ToSlash(rel))
+		if rel == "." {
+			entry = name
+		}
+		if entry == "" {
+			return nil
+		}
 		h, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return nil
 		}
-		h.Name = filepath.ToSlash(rel)
+		h.Name = entry
 		if d.IsDir() {
 			h.Name += "/"
 			_, err = zw.CreateHeader(h)
@@ -280,4 +293,55 @@ func (s *Server) zipFolder(w http.ResponseWriter, r *http.Request, u config.User
 		_, err = io.Copy(fw, rs)
 		return err
 	})
+}
+
+// zipMany downloads several chosen files and folders as one zip. It is a form POST (so the browser
+// saves it as a download) with one "path" field per item.
+func (s *Server) zipMany(w http.ResponseWriter, r *http.Request, u config.User) {
+	if r.Method != http.MethodPost {
+		jerr(w, 405, "POST only")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	if err := r.ParseForm(); err != nil {
+		jerr(w, 400, "bad request")
+		return
+	}
+	paths := r.PostForm["path"]
+	if len(paths) == 0 || len(paths) > 5000 {
+		jerr(w, 400, "choose between 1 and 5000 items")
+		return
+	}
+	type item struct{ abs, name string }
+	var items []item
+	var root string
+	seen := map[string]bool{}
+	for _, rel := range paths {
+		rt, abs, err := s.resolve(u, rel)
+		if err != nil || abs == rt {
+			jerr(w, 400, "bad path")
+			return
+		}
+		if _, err := os.Lstat(abs); err != nil {
+			continue // already gone: skip it
+		}
+		root = rt
+		n := filepath.Base(abs)
+		if seen[n] {
+			continue
+		}
+		seen[n] = true
+		items = append(items, item{abs, n})
+	}
+	if len(items) == 0 {
+		jerr(w, 404, "none of those items exist any more")
+		return
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", `attachment; filename="NestNAS-selection.zip"`)
+	zw := zip.NewWriter(w)
+	defer zw.Close()
+	for _, it := range items {
+		s.zipTree(zw, root, it.abs, it.name)
+	}
 }
