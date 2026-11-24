@@ -122,6 +122,9 @@ func (s *Server) loadFaces(root string, fx *faceIndex) {
 		}
 		done()
 	}
+	if len(fx.photos) > 0 && fx.assignNew() { // also repairs groups that put two faces of one photo together
+		_ = s.savePeople(root, fx)
+	}
 }
 
 func (s *Server) readFaceSegment(p string, fx *faceIndex) error {
@@ -301,6 +304,42 @@ func centroid(embs [][]float32) []float32 {
 // assignNew puts every face that has no person yet with the person it most resembles, or starts
 // a new group. The caller holds fx.mu.
 func (fx *faceIndex) assignNew() bool {
+	// Two faces in one photo are two different people, so a person can have at most one face per
+	// photo. Older groupings may break that: keep the clearest face and let the others regroup.
+	pathOf := map[string]string{}
+	for p, ph := range fx.photos {
+		for i := range ph.Faces {
+			pathOf[ph.Faces[i].Key] = p
+		}
+	}
+	seen := map[string]map[string]string{} // person -> photo -> face kept
+	for k, pid := range fx.pd.Assign {
+		f, p := fx.byKey[k], pathOf[k]
+		if f == nil || p == "" {
+			continue
+		}
+		if seen[pid] == nil {
+			seen[pid] = map[string]string{}
+		}
+		if other, dup := seen[pid][p]; dup {
+			o := fx.byKey[other]
+			if f.Score*f.Box[2]*f.Box[3] > o.Score*o.Box[2]*o.Box[3] || (f.Score*f.Box[2]*f.Box[3] == o.Score*o.Box[2]*o.Box[3] && k < other) {
+				delete(fx.pd.Assign, other)
+				seen[pid][p] = k
+			} else {
+				delete(fx.pd.Assign, k)
+			}
+		} else {
+			seen[pid][p] = k
+		}
+	}
+	inPhoto := map[string]map[string]bool{} // person -> photos they already appear in
+	for pid, m := range seen {
+		inPhoto[pid] = map[string]bool{}
+		for p := range m {
+			inPhoto[pid][p] = true
+		}
+	}
 	members := map[string][][]float32{}
 	for k, pid := range fx.pd.Assign {
 		if f := fx.byKey[k]; f != nil && fx.pd.People[pid] != nil {
@@ -332,7 +371,11 @@ func (fx *faceIndex) assignNew() bool {
 	})
 	for _, f := range todo {
 		best, bs := "", float32(assignSim)
+		here := pathOf[f.Key]
 		for pid, c := range cents {
+			if inPhoto[pid][here] {
+				continue // that person is already in this photo, so this must be someone else
+			}
 			if s := vision.Similarity(f.Emb, c); s >= bs {
 				best, bs = pid, s
 			}
@@ -349,6 +392,10 @@ func (fx *faceIndex) assignNew() bool {
 			}
 		}
 		fx.pd.Assign[f.Key] = best
+		if inPhoto[best] == nil {
+			inPhoto[best] = map[string]bool{}
+		}
+		inPhoto[best][here] = true
 	}
 	return true
 }
@@ -580,6 +627,38 @@ func (s *Server) peopleEdit(w http.ResponseWriter, r *http.Request, u config.Use
 		return
 	}
 	jsonOut(w, 200, map[string]bool{"ok": true})
+}
+
+// peopleInPhoto lists everyone found in one photo (two people in a photo appear under both).
+func (s *Server) peopleInPhoto(w http.ResponseWriter, r *http.Request, u config.User) {
+	root, err := s.userRoot(u.Name)
+	if err != nil {
+		jerr(w, 503, storageGoneMsg)
+		return
+	}
+	_, abs, err := s.resolve(u, r.URL.Query().Get("path"))
+	if err != nil {
+		jerr(w, 400, "bad path")
+		return
+	}
+	out := []map[string]interface{}{}
+	if s.st.FacesOn() {
+		fx := s.faceIdx(u.Name)
+		s.loadFaces(root, fx)
+		fx.mu.RLock()
+		if ph := fx.photos[relOf(root, abs)]; ph != nil {
+			faces := append([]faceRec(nil), ph.Faces...)
+			sort.Slice(faces, func(i, j int) bool { return faces[i].Box[0] < faces[j].Box[0] }) // left to right
+			for _, f := range faces {
+				pid := fx.pd.Assign[f.Key]
+				if p := fx.pd.People[pid]; p != nil && !p.Hidden {
+					out = append(out, map[string]interface{}{"id": pid, "name": p.Name, "face": f.Key})
+				}
+			}
+		}
+		fx.mu.RUnlock()
+	}
+	jsonOut(w, 200, map[string]interface{}{"people": out})
 }
 
 // faceImage serves a square crop of one face.

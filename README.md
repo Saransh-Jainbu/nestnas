@@ -17,7 +17,7 @@ Website: <https://nestnas.vercel.app> (its source is in [`site/`](site/)).
 | **Space allowance** | Files live in a normal folder; NestNAS enforces a per-user quota (no partitioning, no root) |
 | **Web file manager** | Upload (drag and drop, progress), resumable download, folders, rename, zip a whole folder |
 | **Search** | Find files by name and by words inside text files. With **smart photo search** switched on, find photos by what they show ("beach at sunset", "birthday cake") using a small AI model that runs on your computer |
-| **People** | Optional face recognition: photos are grouped by person, you name each group, and searching a name finds that person's photos |
+| **People** | Optional face recognition: photos are grouped by person, you name each group, and searching a name finds that person's photos. A photo with two people appears under both, and the full-screen viewer shows who is in it |
 | **Select several** | Tick files in the list or gallery (shift-click for a range, a heading's box for a whole date group), then download them as one zip or move them to the trash. Files can be grouped by date: Today, Yesterday, Previous 7 days, then by month |
 | **Preview and gallery** | Open photos, videos, audio, PDFs and text inside NestNAS: thumbnails, full-screen viewer, swipe/arrow keys, video seeking. Never cached by the browser. HTML/SVG are never previewed (they can run script) |
 | **Phone/computer backup** | The **Backup** tab copies photos, videos or a folder to the NAS over Wi-Fi. Safe to repeat: skips what's already there, never overwrites or deletes, keeps each photo's date, saves under `Phone Backup/<device>/<year>/<month>`, retries bad Wi-Fi. |

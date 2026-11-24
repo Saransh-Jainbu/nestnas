@@ -257,6 +257,9 @@ button.ghost.on{background:var(--tint);color:var(--accent);border-color:var(--ac
 .viewer button.ghost{color:var(--text);border-color:#243242}
 .vstage{flex:1;display:flex;overflow:auto;padding:8px;min-height:0}
 .vstage>*{margin:auto}
+.vppl{position:absolute;left:0;right:0;bottom:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 70px;pointer-events:none;z-index:2}
+.vchip{pointer-events:auto;display:flex;align-items:center;gap:8px;padding:4px 14px 4px 4px;border-radius:999px;background:rgba(5,8,12,.78);border:1px solid var(--line);color:var(--text);font-size:13px;min-height:0;backdrop-filter:blur(8px)}
+.vchip img{width:30px;height:30px;border-radius:50%;object-fit:cover}
 .vimg{max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in;border-radius:6px}
 .vimg.zoom{max-width:none;max-height:none;cursor:zoom-out}
 .vmedia{max-width:100%;max-height:100%;border-radius:10px}
@@ -795,7 +798,7 @@ function openViewer(items, start) {
   const ov = document.createElement("div"); ov.className = "viewer";
   ov.innerHTML = `<div class="vbar"><span class="vtitle" id="vt"></span><span class="vc" id="vc"></span><span style="flex:1"></span>
     <button class="ghost" id="vd">${ico("download")} Download</button><button class="ib" id="vx" aria-label="Close" style="color:var(--text)">${ico("x")}</button></div>
-    <div class="vstage" id="vs"></div><button class="vnav" id="vp" aria-label="Previous">${ico("chev").replace("<svg ", '<svg style="transform:scaleX(-1)" ')}</button><button class="vnav" id="vn" aria-label="Next" style="left:auto;right:14px">${ico("chev")}</button>`;
+    <div class="vstage" id="vs"></div><div class="vppl" id="vppl"></div><button class="vnav" id="vp" aria-label="Previous">${ico("chev").replace("<svg ", '<svg style="transform:scaleX(-1)" ')}</button><button class="vnav" id="vn" aria-label="Next" style="left:auto;right:14px">${ico("chev")}</button>`;
   document.body.appendChild(ov);
   const q = id => ov.querySelector("#" + id);
   const src = it => "/api/view?path=" + encodeURIComponent(it.path);
@@ -815,6 +818,12 @@ function openViewer(items, start) {
     el.onerror = () => { st.innerHTML = `<div class="vmsg">Can't show this file here. Use Download.</div>`; };
     st.appendChild(el);
     const nx = items[(i + 1) % items.length]; if (items.length > 1 && nx.kind === "image") new Image().src = src(nx); // preload the next photo
+    const vp = q("vppl"); vp.innerHTML = "";
+    if (it.kind === "image") api("/api/people/photo?path=" + encodeURIComponent(it.path)).then(r => {
+      if (items[i] !== it || !r.people.length) return;
+      vp.innerHTML = r.people.map(p => `<button class="vchip" data-p="${esc(p.id)}" title="Open ${esc(p.name || "this person")}"><img alt="" src="/api/face?key=${encodeURIComponent(p.face)}"><span>${p.name ? esc(p.name) : "Add a name"}</span></button>`).join("");
+      vp.querySelectorAll("[data-p]").forEach(b => b.onclick = ev => { ev.stopPropagation(); close(); state.person = b.dataset.p; state.tab = "people"; viewShell(); });
+    }).catch(() => {});
   }
   const go = d => { i = (i + d + items.length) % items.length; show(); };
   const close = () => { document.removeEventListener("keydown", key); ov.remove(); };
