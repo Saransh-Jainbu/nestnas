@@ -465,6 +465,9 @@ type driveReport struct {
 func (s *Server) driveInfo(now time.Time) driveReport {
 	path := s.st.StoragePath()
 	d := driveReport{Path: path, Connected: s.storageOK()}
+	if !d.Connected {
+		return d // the path now resolves to the laptop's own disk: report nothing about it
+	}
 	d.Free, _ = diskFree(path)
 	d.Total, _ = diskTotal(path)
 	m, ok := mountOf(readMountTable(), path)
@@ -605,7 +608,7 @@ func (s *Server) sample() {
 			if sm.Out > s.mon.peakOut {
 				s.mon.peakOut = sm.Out
 			}
-			if m, ok := mountOf(readMountTable(), s.st.StoragePath()); ok {
+			if m, ok := mountOf(readMountTable(), s.st.StoragePath()); ok && s.storageOK() {
 				if dev := wholeDisk(m.src); dev != "" {
 					if st, ok := readDiskStat(dev); ok {
 						if s.mon.lastDev == dev {

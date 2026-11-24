@@ -105,7 +105,14 @@ chk "dav: no partial file left after quota fail" "$($D -X PROPFIND -H 'Depth: 1'
 # --- unplugged storage drive must NOT fall back to the internal disk ---
 chk "storage has an identity marker" "$([ -s "$T/store/.nestnas-id" ] && echo yes || echo no)" yes
 mv "$T/store/users" "$T/store/users.off"
-chk "drive gone: web API says 503" "$(code -b $J $B/api/me)" 503
+chk "drive gone: file API says 503" "$(code -b $J "$B/api/list?path=/")" 503
+chk "drive gone: you can still sign in" "$(code -X POST -d '{"username":"admin","password":"password123"}' $B/api/login)" 200
+chk "drive gone: the dashboard can still load your account" "$(code -b $J $B/api/me)" 200
+chk "drive gone: account says the drive is missing" "$(curl -s -b $J $B/api/me | grep -c '"storage_ok":false')" 1
+chk "drive gone: settings still load" "$(code -b $J $B/api/system)" 200
+chk "drive gone: health still loads and reports the drive as not connected" "$(curl -s -b $J $B/api/monitor | python3 -c "import sys,json;d=json.load(sys.stdin)['drive'];print(d['connected'],d.get('device','none'))")" "False none"
+chk "drive gone: monitor warns about it" "$(curl -s -b $J $B/api/monitor | grep -c 'not connected')" 1
+chk "drive gone: snapshots refused" "$(code -b $J $B/api/snapshots)" 503
 chk "drive gone: upload refused" "$(code -b $J -X PUT --data-binary @$T/f.txt "$B/api/upload?path=/&name=x.txt")" 503
 chk "drive gone: dav refused" "$(dcode -X PUT --data-binary @$T/d.txt $B/dav/x.txt)" 503
 chk "drive gone: share link refused" "$(code $B$SH)" 503
@@ -113,12 +120,12 @@ chk "drive gone: status reports it" "$(curl -s $B/api/status | grep -c '"storage
 chk "drive gone: nothing recreated on internal disk" "$([ -e "$T/store/users" ] && echo recreated || echo clean)" clean
 sleep 2.2   # storage status is cached for 2s
 mv "$T/store/users.off" "$T/store/users"
-chk "drive back: works again, no restart needed" "$(code -b $J $B/api/me)" 200
+chk "drive back: works again, no restart needed" "$(code -b $J "$B/api/list?path=/")" 200
 # a DIFFERENT drive at the same path (has a users folder but not our marker) must be refused
 mv "$T/store" "$T/store.real"; mkdir -p "$T/store/users"; sleep 2.2
-chk "wrong drive at same path: refused" "$(code -b $J $B/api/me)" 503
+chk "wrong drive at same path: refused" "$(code -b $J "$B/api/list?path=/")" 503
 rm -rf "$T/store"; mv "$T/store.real" "$T/store"; sleep 2.2
-chk "original drive back: works again" "$(code -b $J $B/api/me)" 200
+chk "original drive back: works again" "$(code -b $J "$B/api/list?path=/")" 200
 # --- in-app preview: /api/view and /api/thumb ---
 python3 - "$T" <<'PY'
 import sys, zlib, struct
@@ -384,6 +391,102 @@ chk "snapshots: stored copies are cleaned up" "$(ls "$UD/.snapshots/objects" | w
 chk "snapshots: turn on daily snapshots (admin)" "$(code -b $J -X POST -d '{"enable":true}' $B/api/snapshots/auto)" 200
 chk "snapshots: daily setting is reported" "$($C $B/api/snapshots | grep -c '"auto":true')" 1
 $C -X POST -d '{"enable":false}' $B/api/snapshots/auto >/dev/null
+
+# --- downloading several selected items as one zip ---
+put msa.txt "selection-a"; put msb.txt "selection-b"
+$C -X POST -d '{"path":"/msdir"}' $B/api/mkdir >/dev/null; printf 'inside-folder' > "$T/ms.tmp"; $C -X PUT --data-binary @$T/ms.tmp "$B/api/upload?path=/msdir&name=c.txt" >/dev/null
+curl -s -b $J -X POST --data-urlencode "path=/msa.txt" --data-urlencode "path=/msb.txt" --data-urlencode "path=/msdir" -o "$T/many.zip" $B/api/zipmany
+chk "multi-select: zip holds the chosen files and the folder's contents" "$(python3 -c "import zipfile;z=zipfile.ZipFile('$T/many.zip');print(sorted(n for n in z.namelist() if not n.endswith('/')))")" "['msa.txt', 'msb.txt', 'msdir/c.txt']"
+chk "multi-select: contents are intact" "$(python3 -c "import zipfile;print(zipfile.ZipFile('$T/many.zip').read('msdir/c.txt').decode())")" inside-folder
+chk "multi-select: only the chosen items are included" "$(python3 -c "import zipfile;print(len(zipfile.ZipFile('$T/many.zip').namelist()))")" 4
+chk "multi-select: needs a login" "$(code -X POST -d 'path=/msa.txt' $B/api/zipmany)" 401
+chk "multi-select: GET is refused" "$(code -b $J "$B/api/zipmany")" 405
+chk "multi-select: nothing chosen is refused" "$(code -b $J -X POST -d '' $B/api/zipmany)" 400
+chk "multi-select: a path outside the folder gets nothing (stays inside the user's folder)" "$(code -b $J -X POST --data-urlencode 'path=/../../etc/passwd' $B/api/zipmany)" 404
+chk "multi-select: hidden folders refused" "$(code -b $J -X POST --data-urlencode 'path=/.versions' $B/api/zipmany)" 400
+chk "multi-select: cross-site form refused" "$(code -b $J -X POST -H 'Origin: http://evil.example' -d 'path=/msa.txt' $B/api/zipmany)" 403
+
+# --- smart photo search (needs the model: SMOKE_SMART=<folder with tinyclip-8m files> SMOKE_PHOTOS=<folder of cat/dog/pizza/mountain/car jpgs>) ---
+if [ -n "${SMOKE_SMART:-}" ] && [ -d "${SMOKE_PHOTOS:-/nonexistent}" ]; then
+  mkdir -p "$T/home/models/tinyclip-8m" && cp "$SMOKE_SMART"/{config.json,tokenizer.json,model.safetensors} "$T/home/models/tinyclip-8m/"
+  for f in cat dog pizza mountain car; do $C -X PUT --data-binary @"$SMOKE_PHOTOS/$f.jpg" "$B/api/upload?path=/&name=$f.jpg" >/dev/null; done
+  printf 'The quarterly budget report is due on Friday.' > "$T/note.txt"; $C -X PUT --data-binary @$T/note.txt "$B/api/upload?path=/&name=note.txt" >/dev/null
+  chk "smart: off by default" "$($C $B/api/smart | grep -c '"enabled":false')" 1
+  chk "smart: needs an admin to switch on" "$(code $B/api/smart/enable)" 401
+  chk "smart: unknown model refused" "$(code -b $J -X POST -d '{"model":"nope"}' $B/api/smart/enable)" 400
+  chk "smart: switch on" "$(code -b $J -X POST -d '{"model":"tinyclip-8m"}' $B/api/smart/enable)" 200
+  for i in $(seq 1 120); do [ "$($C $B/api/smart | python3 -c "import sys,json;d=json.load(sys.stdin)['index'];print(d['total']>0 and d['done']==d['total'] and not d['running'])")" = True ] && break; sleep 1; done
+  chk "smart: all photos indexed" "$($C $B/api/smart | python3 -c "import sys,json;d=json.load(sys.stdin)['index'];print(d['done']==d['total'] and d['total']>=5)")" True
+  top(){ $C -G --data-urlencode "q=$1" $B/api/search | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['photos'][0]['name'] if d['photos'] else 'none')"; }
+  chk "smart: 'a cat' finds the cat" "$(top 'a cat')" cat.jpg
+  chk "smart: 'a dog' finds the dog" "$(top 'a dog')" dog.jpg
+  chk "smart: 'pizza' finds the pizza" "$(top 'pizza')" pizza.jpg
+  chk "smart: 'snowy mountains' finds the mountain" "$(top 'snowy mountains')" mountain.jpg
+  chk "smart: 'a car' finds the car" "$(top 'a car')" car.jpg
+  chk "smart: a query with no matching photo returns nothing" "$(top 'a giraffe in the savanna')" none
+  chk "smart: file names are searched too" "$($C -G --data-urlencode 'q=pizza' $B/api/search | python3 -c "import sys,json;print([f['name'] for f in json.load(sys.stdin)['files']])")" "['pizza.jpg']"
+  chk "smart: text inside files is searched" "$($C -G --data-urlencode 'q=budget report' $B/api/search | python3 -c "import sys,json;d=json.load(sys.stdin)['text'];print(d[0]['name'],'Friday' in d[0]['snippet'])")" "note.txt True"
+  chk "smart: empty query refused" "$(code -b $J "$B/api/search?q=")" 400
+  chk "smart: needs a login" "$(code "$B/api/search?q=cat")" 401
+  chk "smart: the index folder is hidden and unreachable" "$(code -b $J "$B/api/list?path=/.search")" 400
+  if [ "$ENC" = 1 ]; then
+    chk "smart: index files are encrypted on disk" "$(grep -rl NNS1 "$T/store/users/admin/.search" 2>/dev/null | wc -l)" 0
+  else
+    chk "smart: index files exist on disk" "$(ls "$T/store/users/admin/.search"/*/seg-*.bin 2>/dev/null | wc -l | python3 -c "import sys;print(int(sys.stdin.read())>0)")" True
+  fi
+  chk "smart: a deleted photo disappears from results" "$($C -X POST -d '{"path":"/cat.jpg"}' $B/api/delete >/dev/null; top 'a cat')" none
+  chk "smart: switch off and delete" "$(code -b $J -X POST -d '{"delete":true}' $B/api/smart/disable)" 200
+  chk "smart: off again" "$($C $B/api/smart | grep -c '"enabled":false')" 1
+  chk "smart: the index and model are removed" "$([ -e "$T/store/users/admin/.search/tinyclip-8m" ] || [ -e "$T/home/models/tinyclip-8m" ] && echo present || echo gone)" gone
+  for f in dog pizza mountain car; do $C -X POST -d "{\"path\":\"/$f.jpg\"}" $B/api/delete >/dev/null; done; $C -X POST -d '{"path":"/note.txt"}' $B/api/delete >/dev/null; $C -X POST -d '{}' $B/api/trash/empty >/dev/null
+fi
+
+# --- people: face recognition (needs SMOKE_FACES=<folder with yunet.onnx and sface.onnx> and SMOKE_FACE_PHOTOS=<folder with einstein1/einstein2/curie/turing .jpg>) ---
+if [ -n "${SMOKE_FACES:-}" ] && [ -d "${SMOKE_FACE_PHOTOS:-/nonexistent}" ]; then
+  mkdir -p "$T/home/models/faces" && cp "$SMOKE_FACES"/yunet.onnx "$SMOKE_FACES"/sface.onnx "$T/home/models/faces/"
+  for f in einstein1 einstein2 curie turing; do $C -X PUT --data-binary @"$SMOKE_FACE_PHOTOS/$f.jpg" "$B/api/upload?path=/&name=$f.jpg" >/dev/null; done
+  chk "people: needs a login" "$(code $B/api/people)" 401
+  chk "people: switching on needs an admin session" "$(code -X POST -d '{"enable":true}' $B/api/smart/faces)" 401
+  chk "people: switch on" "$(code -b $J -X POST -d '{"enable":true}' $B/api/smart/faces)" 200
+  for i in $(seq 1 180); do [ "$($C $B/api/smart | python3 -c "import sys,json;d=json.load(sys.stdin)['index'];print(d['total']>0 and d['done']==d['total'] and not d['running'])")" = True ] && break; sleep 1; done
+  ppl(){ $C "$B/api/people${1:-}"; }
+  chk "people: faces were found and grouped" "$(ppl | python3 -c "import sys,json;print(len(json.load(sys.stdin)['people'])>=2)")" True
+  EIN=$(ppl | python3 -c "import sys,json;p=[x for x in json.load(sys.stdin)['people'] if x['photos']==2];print(p[0]['id'] if p else '')")
+  chk "people: the two photos of the same person are one group" "$([ -n "$EIN" ] && echo yes)" yes
+  COVER=$(ppl | python3 -c "import sys,json;p=[x for x in json.load(sys.stdin)['people'] if x['photos']==2];print(p[0]['cover'])")
+  chk "people: a face crop is served as an image" "$(curl -s -b $J -o $T/face.jpg -w '%{content_type} %{http_code}' "$B/api/face?key=$COVER")" "image/jpeg 200"
+  chk "people: the crop is a real picture" "$(python3 -c "import os;print(os.path.getsize('$T/face.jpg')>1500)")" True
+  chk "people: unknown face key is a 404" "$(code -b $J "$B/api/face?key=1-2-3")" 404
+  chk "people: give a name" "$(code -b $J -X POST -d "{\"op\":\"rename\",\"id\":\"$EIN\",\"name\":\"Albert Einstein\"}" $B/api/people/edit)" 200
+  chk "people: the name shows in the list" "$(ppl | grep -c 'Albert Einstein')" 1
+  chk "people: searching a name finds the person" "$($C -G --data-urlencode 'q=einstein' $B/api/search | python3 -c "import sys,json;d=json.load(sys.stdin)['people'];print(d[0]['name'],d[0]['photos'])")" "Albert Einstein 2"
+  chk "people: a name with markup is refused" "$(code -b $J -X POST -d "{\"op\":\"rename\",\"id\":\"$EIN\",\"name\":\"<b>x</b>\"}" $B/api/people/edit)" 400
+  OTHER=$(ppl | python3 -c "import sys,json;p=[x for x in json.load(sys.stdin)['people'] if x['id']!='$EIN' and x['photos']==1];print(p[0]['id'])")
+  chk "people: three different people were found" "$(ppl | python3 -c "import sys,json;print(len(json.load(sys.stdin)['people']))")" 3
+  chk "people: giving another person the same name merges them" "$(curl -s -b $J -X POST -d "{\"op\":\"rename\",\"id\":\"$OTHER\",\"name\":\"albert einstein\"}" $B/api/people/edit | grep -c merged_into)" 1
+  chk "people: the merged group has three photos" "$(ppl | python3 -c "import sys,json;print(max(x['photos'] for x in json.load(sys.stdin)['people'] if x['name']=='Albert Einstein'))")" 3
+  FACE=$(curl -s -b $J "$B/api/people/photos?id=$EIN" | python3 -c "import sys,json;d=json.load(sys.stdin)['photos'];print([x['face'] for x in d if x['name'] not in ('einstein1.jpg','einstein2.jpg')][0])")
+  chk "people: 'not this person' splits a face off" "$(code -b $J -X POST -d "{\"op\":\"notthis\",\"id\":\"$EIN\",\"face\":\"$FACE\"}" $B/api/people/edit)" 200
+  chk "people: the group is back to three or fewer photos" "$(ppl | python3 -c "import sys,json;print(max(x['photos'] for x in json.load(sys.stdin)['people'] if x['name']=='Albert Einstein'))")" 2
+  NEW=$(ppl | python3 -c "import sys,json;p=[x for x in json.load(sys.stdin)['people'] if x['name']=='' and x['photos']==1 and x['cover']=='$FACE'];print(p[0]['id'] if p else '')")
+  chk "people: the split-off face is its own group" "$([ -n "$NEW" ] && echo yes)" yes
+  chk "people: hide a group" "$(code -b $J -X POST -d "{\"op\":\"hide\",\"id\":\"$NEW\",\"hidden\":true}" $B/api/people/edit)" 200
+  chk "people: hidden groups are not listed" "$(ppl | grep -c "$NEW")" 0
+  chk "people: but can be shown on request" "$(ppl '?hidden=1' | grep -c "$NEW")" 1
+  chk "people: bad action refused" "$(code -b $J -X POST -d '{"op":"explode","id":"x"}' $B/api/people/edit)" 400
+  if [ "$ENC" = 1 ]; then
+    chk "people: names are not readable on disk" "$(grep -rl 'Albert Einstein' "$T/store/users/admin/.search" 2>/dev/null | wc -l)" 0
+  else
+    chk "people: names are stored with the user's files" "$(grep -rl 'Albert Einstein' "$T/store/users/admin/.search" 2>/dev/null | wc -l | python3 -c "import sys;print(int(sys.stdin.read())>0)")" True
+    kill $PID; wait $PID 2>/dev/null; start
+    $C -X POST -d '{"username":"admin","password":"password123"}' $B/api/login >/dev/null
+    chk "people: names survive a restart" "$($C $B/api/people | grep -c 'Albert Einstein')" 1
+  fi
+  chk "people: a deleted photo's face disappears" "$($C -X POST -d '{"path":"/curie.jpg"}' $B/api/delete >/dev/null; sleep 22; $C "$B/api/people?hidden=1" | python3 -c "import sys,json;print(sum(x['photos'] for x in json.load(sys.stdin)['people']))")" 3
+  chk "people: switch off and forget" "$(code -b $J -X POST -d '{"enable":false,"delete":true}' $B/api/smart/faces)" 200
+  chk "people: faces folder and models are removed" "$([ -e "$T/store/users/admin/.search/faces" ] || [ -e "$T/home/models/faces" ] && echo present || echo gone)" gone
+  for f in einstein1 einstein2 turing curie; do $C -X POST -d "{\"path\":\"/$f.jpg\"}" $B/api/delete >/dev/null; done; $C -X POST -d '{}' $B/api/trash/empty >/dev/null
+fi
 
 # --- health monitor ---
 chk "monitor: needs a login" "$(code $B/api/monitor)" 401

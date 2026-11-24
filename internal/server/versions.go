@@ -29,7 +29,7 @@ const (
 )
 
 func internalName(n string) bool {
-	return strings.EqualFold(n, trashName) || strings.EqualFold(n, versionsName) || strings.EqualFold(n, snapshotsName)
+	return strings.EqualFold(n, trashName) || strings.EqualFold(n, versionsName) || strings.EqualFold(n, snapshotsName) || strings.EqualFold(n, searchName)
 }
 
 type verMeta struct {

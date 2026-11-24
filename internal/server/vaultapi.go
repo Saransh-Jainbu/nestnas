@@ -19,10 +19,20 @@ import (
 // that does not touch file contents, so an admin can log in and unlock.
 func lockExempt(p string) bool {
 	switch p {
-	case "/api/me", "/api/list", "/api/system", "/api/password", "/api/shares", "/api/share/delete":
+	case "/api/me", "/api/list", "/api/smart", "/api/system", "/api/password", "/api/shares", "/api/share/delete":
 		return true
 	}
 	return strings.HasPrefix(p, "/api/vault") || strings.HasPrefix(p, "/api/users") || strings.HasPrefix(p, "/api/apps")
+}
+
+// storageExempt lists the API calls that still work while the storage drive is unplugged, so
+// that an admin can sign in, see that the drive is missing and look at settings and health.
+func storageExempt(p string) bool {
+	switch p {
+	case "/api/me", "/api/system", "/api/monitor", "/api/vault", "/api/password", "/api/smart":
+		return true
+	}
+	return false
 }
 
 func (s *Server) writeAutoKey() error {
