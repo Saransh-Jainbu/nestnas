@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NestNAS: private cloud storage on your own hardware</title>
-<meta name="description" content="NestNAS turns a laptop into private cloud storage with encrypted files, phone photo backup, a network drive and a photo gallery. Open source, one program, no dependencies.">
+<meta name="description" content="NestNAS turns a laptop into private cloud storage with encrypted files, phone photo backup, a network drive, photo search and file history. Open source, one program, no dependencies.">
 <meta name="theme-color" content="#05080c">
 <link rel="canonical" href="https://nestnas.vercel.app/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="NestNAS: private cloud storage on your own hardware">
-<meta property="og:description" content="Encrypted storage, phone photo backup, a network drive and a photo gallery. Open source, one program, no dependencies.">
+<meta property="og:description" content="Encrypted storage, phone photo backup, a network drive, photo search and file history. Open source, one program, no dependencies.">
 <meta property="og:image" content="https://nestnas.vercel.app/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -80,7 +80,7 @@
     <span class="line"><span><em>Self-hosted.</em></span></span>
   </h1>
   <div class="hero-sub">
-    <p data-reveal>NestNAS turns a laptop into <strong>private cloud storage</strong>: phone photo backup, an encrypted network drive, a photo gallery and share links. One program, no subscription, and your data stays on your hardware.</p>
+    <p data-reveal>NestNAS turns a laptop into <strong>private cloud storage</strong>: phone photo backup, an encrypted network drive, photo search, file history and share links. One program, no subscription, and your data stays on your hardware.</p>
     <div class="cta" data-reveal>
       <a class="btn primary" href="#start" data-magnetic><span>Get started</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       <a class="btn ghost" href="#features" data-magnetic><span>View features</span></a>
@@ -149,8 +149,8 @@
 <!-- ticker -->
 <div class="ticker mono" aria-hidden="true">
   <div class="track">
-    <span>AES-256-GCM</span><i>/</i><span>TLS 1.3 only</span><i>/</i><span>scrypt-wrapped keys</span><i>/</i><span>zero dependencies</span><i>/</i><span>WebDAV drive</span><i>/</i><span>external drives, hot-swap safe</span><i>/</i><span>photo gallery</span><i>/</i><span>one binary</span><i>/</i><span>tamper-evident files</span><i>/</i>
-    <span>AES-256-GCM</span><i>/</i><span>TLS 1.3 only</span><i>/</i><span>scrypt-wrapped keys</span><i>/</i><span>zero dependencies</span><i>/</i><span>WebDAV drive</span><i>/</i><span>external drives, hot-swap safe</span><i>/</i><span>photo gallery</span><i>/</i><span>one binary</span><i>/</i><span>tamper-evident files</span><i>/</i>
+    <span>AES-256-GCM</span><i>/</i><span>TLS 1.3 only</span><i>/</i><span>scrypt-wrapped keys</span><i>/</i><span>zero dependencies</span><i>/</i><span>WebDAV drive</span><i>/</i><span>external drives, hot-swap safe</span><i>/</i><span>photo gallery</span><i>/</i><span>search by what a photo shows</span><i>/</i><span>file versions</span><i>/</i><span>snapshots</span><i>/</i><span>health monitor</span><i>/</i><span>one binary</span><i>/</i><span>tamper-evident files</span><i>/</i>
+    <span>AES-256-GCM</span><i>/</i><span>TLS 1.3 only</span><i>/</i><span>scrypt-wrapped keys</span><i>/</i><span>zero dependencies</span><i>/</i><span>WebDAV drive</span><i>/</i><span>external drives, hot-swap safe</span><i>/</i><span>photo gallery</span><i>/</i><span>search by what a photo shows</span><i>/</i><span>file versions</span><i>/</i><span>snapshots</span><i>/</i><span>health monitor</span><i>/</i><span>one binary</span><i>/</i><span>tamper-evident files</span><i>/</i>
   </div>
 </div>
 
@@ -241,6 +241,59 @@
         <div class="u"><b style="--c:#8fb4ff">R</b><div class="q"><i style="width:55%"></i></div></div>
       </div>
     </article>
+
+    <article class="cell c7" data-reveal>
+      <div class="tag mono">Smart photo search</div>
+      <h3>Find photos by what they show.</h3>
+      <p>Type "beach at sunset" or "birthday cake". A small model runs on your computer, so your photos are never sent anywhere. It is optional and off until you switch it on.</p>
+      <div class="viz search-viz" aria-hidden="true">
+        <div class="sv-q mono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>beach at sunset</div>
+        <div class="sv-tiles"><i class="g1"></i><i class="g4"></i><i class="g2"></i><i class="g5"></i></div>
+      </div>
+    </article>
+
+    <article class="cell c5" data-reveal>
+      <div class="tag mono">People</div>
+      <h3>Faces, grouped by person.</h3>
+      <p>Name a group once and find every photo of them. A photo with two people appears under both.</p>
+      <div class="viz people-viz" aria-hidden="true">
+        <div class="pv"><b style="--c:#6dc8ff">A</b>Alex</div>
+        <div class="pv"><b style="--c:#ff9a3c">M</b>Maya</div>
+        <div class="pv"><b style="--c:#7fe6d9">R</b>Ravi</div>
+        <div class="pv"><b style="--c:#8fb4ff">S</b>Sam</div>
+      </div>
+    </article>
+
+    <article class="cell c4" data-reveal>
+      <div class="tag mono">Versions &amp; snapshots</div>
+      <h3>Go back in time.</h3>
+      <p>Replaced files keep their old copies, and snapshots remember how everything looked on a given day.</p>
+      <div class="viz mini-viz">
+        <div class="pill mono"><span>report.docx</span><em>3 versions</em></div>
+        <div class="pill undo mono"><span>Snapshot · yesterday</span><em>↩ restore</em></div>
+      </div>
+    </article>
+
+    <article class="cell c4" data-reveal>
+      <div class="tag mono">Health monitor</div>
+      <h3>See how it is doing.</h3>
+      <p>Upload and download speed, drive space and temperature, battery, and plain warnings when something needs attention.</p>
+      <div class="viz users-viz health-viz mono" aria-hidden="true">
+        <div class="u"><span>download</span><div class="q"><i style="width:68%"></i></div><small>22 MB/s</small></div>
+        <div class="u"><span>upload</span><div class="q"><i style="width:34%"></i></div><small>8 MB/s</small></div>
+        <div class="u"><span>drive</span><div class="q"><i style="width:31%"></i></div><small>31% used</small></div>
+      </div>
+    </article>
+
+    <article class="cell c4" data-reveal>
+      <div class="tag mono">Select &amp; organise</div>
+      <h3>Select many, group by date.</h3>
+      <p>Tick several files and download them as one zip. Group by date like Google Drive and Photos.</p>
+      <div class="viz mini-viz">
+        <div class="pill mono"><span>3 selected</span><em>download zip</em></div>
+        <div class="pill undo mono"><span>Today · Yesterday · November</span><em>by date</em></div>
+      </div>
+    </article>
   </div>
 </section>
 
@@ -254,7 +307,7 @@
   <div class="trust-grid">
     <div class="trust-l">
       <ol class="principles">
-        <li data-reveal><span class="n mono">i.</span><div><h3>One program, no dependencies.</h3><p>Written in Go using only the standard library, so there are no third-party packages to audit and nothing contacts external services. The full source is available to read.</p></div></li>
+        <li data-reveal><span class="n mono">i.</span><div><h3>One program, no dependencies.</h3><p>Written in Go using only the standard library, so there are no third-party packages to audit. Nothing contacts external services, except a one-time download of the optional photo-search models if you switch them on. The full source is available to read.</p></div></li>
         <li data-reveal><span class="n mono">ii.</span><div><h3>Encrypted in transit and at rest.</h3><p>In transit: TLS 1.3 only, using a private certificate authority <em>restricted to private network addresses</em>. At rest: AES-256-GCM, with keys protected by your passphrase (memory-hard scrypt) and a recovery key.</p></div></li>
         <li data-reveal><span class="n mono">iii.</span><div><h3>Documented limitations.</h3><p>File names, sizes and dates are not encrypted; only contents are. The file format is new and has not been independently audited.</p></div></li>
       </ol>
@@ -287,10 +340,10 @@
     <h2 class="display md" data-reveal>Project <em>metrics.</em></h2>
   </header>
   <div class="stats">
-    <div class="stat" data-reveal><b data-count="5125" data-format="comma">0</b><span class="mono">lines of Go in the whole server</span></div>
+    <div class="stat" data-reveal><b data-count="10971" data-format="comma">0</b><span class="mono">lines of Go in the whole program</span></div>
     <div class="stat" data-reveal><b data-count="0">0</b><span class="mono">third-party dependencies in the core</span></div>
-    <div class="stat" data-reveal><b data-count="209">0</b><span class="mono">end-to-end checks (run with encryption off, then on)</span></div>
-    <div class="stat" data-reveal><b data-count="5.7" data-decimals="1" data-suffix=" MB">0</b><span class="mono">the entire program, one file</span></div>
+    <div class="stat" data-reveal><b data-count="542" data-format="comma">0</b><span class="mono">end-to-end checks, across encryption off and on</span></div>
+    <div class="stat" data-reveal><b data-count="7.4" data-decimals="1" data-suffix=" MB">0</b><span class="mono">the entire program, one file</span></div>
   </div>
   <p class="receipt-note mono" data-reveal>Cryptography checked against the official RFC test vectors and cross-checked with OpenSSL. CI runs every push on a clean machine.</p>
 </section>
@@ -305,15 +358,14 @@
   <div class="steps">
     <div class="step" data-reveal>
       <span class="sn mono">01</span>
-      <h3>Build</h3>
-      <p>You need Go 1.18 or newer. Packaged installers arrive with the first release.</p>
+      <h3>Install</h3>
+      <p>One line on Linux, macOS or Windows, checked against a published checksum. You can also download a release or build from source with Go 1.18 or newer.</p>
       <div class="term" id="term">
         <div class="term-h mono"><i></i><i></i><i></i><span>terminal</span><button type="button" id="copy" class="copy mono">copy</button></div>
-<pre class="term-b mono"><span class="c"># get it</span>
-<span class="p">$</span> git clone https://github.com/Saransh-Jainbu/nestnas.git
-<span class="p">$</span> cd nestnas &amp;&amp; make build
-<span class="c"># run it now, and on every start</span>
-<span class="p">$</span> ./nestnas service install</pre>
+<pre class="term-b mono"><span class="c"># Linux or macOS: installs and starts it</span>
+<span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/Saransh-Jainbu/nestnas/main/install.sh | sh
+<span class="c"># Windows (PowerShell)</span>
+<span class="p">&gt;</span> irm https://raw.githubusercontent.com/Saransh-Jainbu/nestnas/main/install.ps1 | iex</pre>
       </div>
     </div>
     <div class="step" data-reveal>
@@ -340,6 +392,7 @@
     <li><b>Not audited.</b> The encryption uses standard primitives, but the file format is new and has not been independently reviewed.</li>
     <li><b>Developed on Linux.</b> Windows and macOS builds compile and share the same code, but have not yet been tested on real systems.</li>
     <li><b>iOS limitations.</b> Safari cannot upload in the background, so the page must stay open during a backup. The iOS Files app cannot mount WebDAV drives; use the web app instead.</li>
+    <li><b>AI features are approximate.</b> Photo search and face grouping use small models that run on your computer. They miss some photos and can confuse look-alikes; you can correct people by hand. They read JPEG, PNG and GIF photos.</li>
     <li><b>Lost passphrase.</b> If both the passphrase and the recovery key are lost, the encrypted files cannot be recovered.</li>
   </ul>
 </section>

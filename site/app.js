@@ -175,7 +175,7 @@
   /* ---------- terminal copy ---------- */
   function setupCopy() {
     var b = $("#copy"); if (!b) return;
-    var cmd = "git clone https://github.com/Saransh-Jainbu/nestnas.git\ncd nestnas && make build\n./nestnas service install";
+    var cmd = "curl -fsSL https://raw.githubusercontent.com/Saransh-Jainbu/nestnas/main/install.sh | sh";
     b.addEventListener("click", function () { copyText(cmd, function () { b.textContent = "copied"; setTimeout(function () { b.textContent = "copy"; }, 1800); }); });
   }
   function copyText(t, ok) {
