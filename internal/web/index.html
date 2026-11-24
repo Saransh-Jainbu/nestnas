@@ -1126,9 +1126,10 @@ async function tabSearch() {
         <p class="small mute">It uses some processor time while it goes through your photos for the first time (a few photos per second), then only for new ones. Photo and face information is stored with your files and is encrypted if you use encryption.</p></div>`
         : `<div class="card">${cardHead("search", `Smart <em>photo search</em>`, `<span class="pill bad">Off</span>`)}<p class="small mute">Ask an admin to turn on smart photo search in this tab.</p></div>`;
     } else if (!d.ready) {
-      const p = d.download.total ? Math.round(100 * d.download.done / d.download.total) : 0;
-      html = `<div class="card">${cardHead("search", `Smart <em>photo search</em>`, `<span class="pill ok">${d.download.running ? "Downloading" : "Waiting"}</span>`)}
-        ${d.download.running ? `<p class="small">Downloading the search model: ${mb(d.download.done)} of ${mb(d.download.total)} (${p}%).</p><div class="bar"><div style="width:${p}%"></div></div>`
+      const own = d.download.id !== "faces";
+      const p = own && d.download.total ? Math.round(100 * d.download.done / d.download.total) : 0;
+      html = `<div class="card">${cardHead("search", `Smart <em>photo search</em>`, `<span class="pill ok">${d.download.running && own ? "Downloading" : "Waiting"}</span>`)}
+        ${d.download.running && own ? `<p class="small">Downloading the search model: ${mb(d.download.done)} of ${mb(d.download.total)} (${p}%).</p><div class="bar"><div style="width:${p}%"></div></div>`
           : `<p class="small" style="color:var(--bad)">${esc(d.download.error || "The model is not downloaded yet.")}</p>${state.me.admin ? `<div class="toolbar"><button id="sretry">Try again</button><button class="ghost" id="soff">Turn off</button></div>` : ""}`}</div>`;
     } else {
       const ix = d.index, p = ix.total ? Math.round(100 * ix.done / ix.total) : 100;
@@ -1139,13 +1140,15 @@ async function tabSearch() {
     }
     if (d.available) {
       const f = d.faces;
+      const fdl = d.download.running && d.download.id === "faces", fp = d.download.total ? Math.round(100 * d.download.done / d.download.total) : 0;
       html += !f.enabled ? (state.me.admin ? `<div class="card">${cardHead("smile", `Recognise <em>people</em>`, `<span class="pill bad">Off</span>`)}
         <p class="small">Finds faces in your photos and groups them by person, so you can name them and open every photo of someone. A small face model (${mb(f.bytes)}) is downloaded once; faces are analysed on this computer and the results stay in your own folder (encrypted if you use encryption).</p>
         <div class="toolbar"><button id="fon">Turn on face recognition</button></div></div>` : "")
-        : !f.ready ? `<div class="card">${cardHead("smile", `Recognise <em>people</em>`, `<span class="pill ok">${d.download.running ? "Downloading" : "Waiting"}</span>`)}<p class="small">${d.download.running ? `Downloading the face model: ${mb(d.download.done)} of ${mb(d.download.total)}.` : esc(d.download.error || "The face model is not downloaded yet.")}</p>${state.me.admin ? `<div class="toolbar"><button class="ghost" id="foff">Turn off</button></div>` : ""}</div>`
+        : !f.ready ? `<div class="card">${cardHead("smile", `Recognise <em>people</em>`, `<span class="pill ok">${d.download.running ? "Downloading" : "Waiting"}</span>`)}${fdl ? `<p class="small">Downloading the face model: ${mb(d.download.done)} of ${mb(d.download.total)} (${fp}%).</p><div class="bar"><div style="width:${fp}%"></div></div>` : `<p class="small"${d.download.error && d.download.id === "faces" ? ` style="color:var(--bad)"` : ""}>${d.download.running ? "Waiting for the other download to finish." : esc(d.download.id === "faces" && d.download.error ? d.download.error : "The face model is not downloaded yet.")}</p>${state.me.admin && !d.download.running ? `<div class="toolbar"><button id="fretry">Try again</button></div>` : ""}`}${state.me.admin ? `<div class="toolbar"><button class="ghost" id="foff">Turn off</button></div>` : ""}</div>`
         : `<div class="card">${cardHead("smile", `Recognise <em>people</em>`, `<span class="pill ok">On</span>`)}<p class="small">${d.index.running ? `Looking at your photos: ${d.index.done} of ${d.index.total}. ` : ""}Open the People tab to name the people it found.</p><div class="toolbar"><button class="ghost" id="fgo">${ico("smile")} Open People</button>${state.me.admin ? `<button class="ghost" id="foff">Turn off</button>` : ""}</div></div>`;
     }
     el.innerHTML = html;
+    const frt = $("fretry"); if (frt) frt.onclick = guard(async () => { await api("/api/smart/faces", { body: { enable: true } }); smartCard(); });
     const fon = $("fon"); if (fon) fon.onclick = guard(async () => { await api("/api/smart/faces", { body: { enable: true } }); smartCard(); });
     const foff = $("foff"); if (foff) foff.onclick = guard(async () => { if (confirm("Turn off face recognition? The face model, the groups and every name you gave will be deleted.")) { await api("/api/smart/faces", { body: { enable: false, delete: true } }); smartCard(); } });
     const fgo = $("fgo"); if (fgo) fgo.onclick = () => { state.tab = "people"; viewShell(); };
