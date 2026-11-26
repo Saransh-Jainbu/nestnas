@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -280,6 +281,7 @@ func (s *Server) unloadIdleModel() {
 	defer s.smart.mu.Unlock()
 	if s.smart.clip != nil && s.smart.busy == 0 && time.Since(s.smart.lastUse) > 5*time.Minute {
 		s.smart.clip, s.smart.clipID, s.smart.faces = nil, "", nil
+		go debug.FreeOSMemory() // hand the model's memory back to the system
 	}
 }
 

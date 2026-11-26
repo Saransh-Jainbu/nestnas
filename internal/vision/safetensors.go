@@ -62,6 +62,9 @@ func openTensors(path string) (*tensorFile, error) {
 
 func (t *tensorFile) close() { t.f.Close() }
 
+// shape returns a tensor's shape, or nil if it is missing.
+func (t *tensorFile) shape(name string) []int { return t.infos[name].Shape }
+
 // get reads a tensor as float32 (converting from half precision if needed).
 func (t *tensorFile) get(name string, want ...int) ([]float32, error) {
 	ti, ok := t.infos[name]
@@ -81,17 +84,43 @@ func (t *tensorFile) get(name string, want ...int) ([]float32, error) {
 			return nil, fmt.Errorf("%s has %d values, expected %d", name, count, w)
 		}
 	}
-	size := ti.Offsets[1] - ti.Offsets[0]
-	buf := make([]byte, size)
-	if _, err := t.f.ReadAt(buf, t.base+ti.Offsets[0]); err != nil {
-		return nil, err
+	es, err := elemSize(ti.DType)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	if ti.Offsets[1]-ti.Offsets[0] != int64(count*es) {
+		return nil, fmt.Errorf("%s: bad size", name)
 	}
 	out := make([]float32, count)
-	switch ti.DType {
-	case "F32":
-		if int(size) != count*4 {
-			return nil, fmt.Errorf("%s: bad size", name)
+	// convert in 1 MiB pieces so loading a big tensor never needs a second full-size buffer
+	buf := make([]byte, (1<<20)/es*es)
+	for done := 0; done < count; {
+		n := len(buf) / es
+		if n > count-done {
+			n = count - done
 		}
+		if _, err := t.f.ReadAt(buf[:n*es], t.base+ti.Offsets[0]+int64(done*es)); err != nil {
+			return nil, err
+		}
+		convert(ti.DType, buf[:n*es], out[done:done+n])
+		done += n
+	}
+	return out, nil
+}
+
+func elemSize(dt string) (int, error) {
+	switch dt {
+	case "F32":
+		return 4, nil
+	case "F16", "BF16":
+		return 2, nil
+	}
+	return 0, fmt.Errorf("unsupported type %s", dt)
+}
+
+func convert(dt string, buf []byte, out []float32) {
+	switch dt {
+	case "F32":
 		for i := range out {
 			out[i] = math.Float32frombits(binary.LittleEndian.Uint32(buf[i*4:]))
 		}
@@ -103,9 +132,26 @@ func (t *tensorFile) get(name string, want ...int) ([]float32, error) {
 		for i := range out {
 			out[i] = math.Float32frombits(uint32(binary.LittleEndian.Uint16(buf[i*2:])) << 16)
 		}
-	default:
-		return nil, fmt.Errorf("%s: unsupported type %s", name, ti.DType)
 	}
+}
+
+// row reads one row of a 2-D tensor straight from the file, so a large table (the word
+// embeddings) does not have to be held in memory: a query only needs a few of its rows.
+func (t *tensorFile) row(name string, r, cols int) ([]float32, error) {
+	ti, ok := t.infos[name]
+	if !ok || len(ti.Shape) != 2 || ti.Shape[1] != cols || r < 0 || r >= ti.Shape[0] {
+		return nil, fmt.Errorf("bad row %d of %s", r, name)
+	}
+	es, err := elemSize(ti.DType)
+	if err != nil {
+		return nil, err
+	}
+	buf := make([]byte, cols*es)
+	if _, err := t.f.ReadAt(buf, t.base+ti.Offsets[0]+int64(r*cols*es)); err != nil {
+		return nil, err
+	}
+	out := make([]float32, cols)
+	convert(ti.DType, buf, out)
 	return out, nil
 }
 
