@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -464,6 +465,11 @@ func (s *Server) indexUser(u config.User) {
 		}
 	}
 	vision.SetWorkers(workersForIndexing())
+	oldGC := debug.SetGCPercent(25) // the models are big and long-lived: collect garbage early instead of letting the heap double
+	defer func() {
+		debug.SetGCPercent(oldGC)
+		debug.FreeOSMemory()
+	}()
 	var cbatch []*idxEntry
 	var fbatch []*facePhoto
 	flush := func() {

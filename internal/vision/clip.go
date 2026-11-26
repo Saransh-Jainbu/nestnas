@@ -49,7 +49,8 @@ type Model struct {
 	vpos   []float32
 	patchW lin
 	vproj  lin
-	tokEmb []float32
+	tf     *tensorFile // kept open: the word-embedding table is read row by row
+	tokN   int
 	tpos   []float32
 	tproj  lin
 	tok    *tokenizer
@@ -102,7 +103,12 @@ func Load(dir string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer tf.close()
+	ok := false
+	defer func() {
+		if !ok {
+			tf.close()
+		}
+	}()
 	m := &Model{dim: c.ProjectionDim, patch: c.Vision.Patch, size: c.Vision.Size, tok: tok, maxTok: c.Text.MaxPos,
 		mean: [3]float32{0.48145466, 0.4578275, 0.40821073}, std: [3]float32{0.26862954, 0.26130258, 0.27577711}}
 	var lerr error
@@ -152,7 +158,10 @@ func Load(dir string) (*Model, error) {
 	m.vproj = getLin("visual_projection", c.ProjectionDim, v.Hidden, false)
 	t := c.Text
 	m.txt = build("text_model", t.Hidden, t.Inter, t.Layers, t.Heads, t.Eps)
-	m.tokEmb = get("text_model.embeddings.token_embedding.weight", t.Vocab, t.Hidden)
+	if sh := tf.shape("text_model.embeddings.token_embedding.weight"); len(sh) != 2 || sh[0] != t.Vocab || sh[1] != t.Hidden {
+		return nil, errors.New("model has an unexpected word-embedding table")
+	}
+	m.tf, m.tokN = tf, t.Vocab
 	m.tpos = get("text_model.embeddings.position_embedding.weight", t.MaxPos, t.Hidden)
 	fin := getNorm("text_model.final_layer_norm", t.Hidden)
 	m.txt.postLN = &fin
@@ -160,6 +169,7 @@ func Load(dir string) (*Model, error) {
 	if lerr != nil {
 		return nil, lerr
 	}
+	ok = true
 	return m, nil
 }
 
@@ -355,7 +365,11 @@ func (m *Model) EmbedText(text string) []float32 {
 	n, d := len(ids), m.txt.hidden
 	x := make([]float32, n*d)
 	for i, id := range ids {
-		e, p := m.tokEmb[id*d:(id+1)*d], m.tpos[i*d:(i+1)*d]
+		e, err := m.tf.row("text_model.embeddings.token_embedding.weight", id, d)
+		if err != nil {
+			return make([]float32, m.dim)
+		}
+		p := m.tpos[i*d : (i+1)*d]
 		for j := 0; j < d; j++ {
 			x[i*d+j] = e[j] + p[j]
 		}

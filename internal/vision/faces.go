@@ -47,6 +47,10 @@ type rawDet struct {
 // Detect finds faces whose confidence is at least minScore.
 func (f *Faces) Detect(img image.Image, minScore float32) ([]Face, error) {
 	src, w, h := planes(img)
+	return f.detectPlanes(src, w, h, minScore)
+}
+
+func (f *Faces) detectPlanes(src [][]float32, w, h int, minScore float32) ([]Face, error) {
 	if w == 0 || h == 0 {
 		return nil, nil
 	}
@@ -223,11 +227,11 @@ func (f *Faces) embedPlanes(src [][]float32, w, h int, fc Face) ([]float32, erro
 
 // Analyze finds the faces in a photo and describes each one.
 func (f *Faces) Analyze(img image.Image, minScore float32) ([]Face, error) {
-	faces, err := f.Detect(img, minScore)
+	src, w, h := planes(img)
+	faces, err := f.detectPlanes(src, w, h, minScore)
 	if err != nil || len(faces) == 0 {
 		return nil, err
 	}
-	src, w, h := planes(img)
 	for i := range faces {
 		if e, err := f.embedPlanes(src, w, h, faces[i]); err == nil {
 			faces[i].Emb = e

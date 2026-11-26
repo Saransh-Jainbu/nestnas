@@ -48,6 +48,7 @@ type Net struct {
 	ints  map[string][]int64 // integer constants (reshape targets, resize scales)
 	input string
 	outs  []string
+	last  map[string]int // index of the last node that reads each tensor
 	mu    sync.Mutex
 }
 
@@ -328,6 +329,12 @@ func LoadNet(path string) (*Net, error) {
 	if net.input == "" || len(net.outs) == 0 {
 		return nil, errors.New("model has no input or output")
 	}
+	net.last = map[string]int{}
+	for i, n := range net.nodes {
+		for _, in := range n.in {
+			net.last[in] = i
+		}
+	}
 	for _, n := range net.nodes {
 		switch n.op {
 		case "Conv", "Relu", "PRelu", "Sigmoid", "MaxPool", "Resize", "Add", "Sub", "Mul", "Transpose", "Reshape", "BatchNormalization", "Dropout", "Flatten", "Gemm":
@@ -349,7 +356,11 @@ func (n *Net) Run(in *tensor) (map[string]*tensor, error) {
 		}
 		return n.inits[name]
 	}
-	for _, nd := range n.nodes {
+	isOut := map[string]bool{}
+	for _, o := range n.outs {
+		isOut[o] = true
+	}
+	for ni, nd := range n.nodes {
 		var out *tensor
 		var err error
 		switch nd.op {
@@ -397,6 +408,11 @@ func (n *Net) Run(in *tensor) (map[string]*tensor, error) {
 			return nil, fmt.Errorf("%s: missing input", nd.op)
 		}
 		vals[nd.out[0]] = out
+		for _, in := range nd.in { // let go of tensors nothing else needs: a big picture has many layers
+			if n.last[in] == ni && !isOut[in] && in != n.input {
+				delete(vals, in)
+			}
+		}
 	}
 	res := map[string]*tensor{}
 	for _, o := range n.outs {
